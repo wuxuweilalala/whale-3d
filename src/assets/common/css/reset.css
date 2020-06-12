@@ -1,0 +1,184 @@
+@charset "utf-8";
+
+html,
+body {
+  width: 100%;
+  overflow: hidden;
+  height: 100%;
+  font-size: 0.625vw;
+}
+
+html {
+  font-size: 1vw;
+}
+/*字体图标*/
+.iconfont {
+  font-size: 0.83333vw;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.clearfix:after {
+  content: " ";
+  display: block;
+  height: 0;
+  clear: both;
+  visibility: hidden
+}
+
+html,
+body,
+ul,
+ol,
+li,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+form,
+fieldset,
+td,
+table,
+button,
+span,
+img,
+div,
+header,
+title,
+section,
+main,
+section,
+input,
+label {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: border-box;
+}
+
+span,
+button {
+  outline: 0;
+  border: 0;
+}
+button{
+  background-color: unset;
+  cursor: pointer;
+}
+input {
+  line-height: normal;
+}
+
+ul,
+li {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: #fff
+}
+
+.icon {
+  /* width: 1em;
+  height: 1em; */
+  vertical-align: -0.15em;
+  fill: currentColor;
+  overflow: hidden;
+}
+canvas{
+  outline: none;
+}
+input {
+  outline: none;
+  border: 0;
+  padding: 0
+}
+
+.show {
+  display: block;
+}
+
+.hide {
+  display: none;
+}
+
+[hide] {
+  display: none;
+}
+
+.visible {
+  visibility: visible
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+[hidden] {
+  visibility: hidden;
+}
+
+.transparent {
+  opacity: 0;
+}
+
+.fl {
+  float: left;
+}
+
+.fr {
+  float: right
+}
+
+.allCenter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+}
+
+.allCenter2 {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.allCenter3 {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.aCenter {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.vCenter {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.vCenter2 {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.offEvent {
+  pointer-events: none
+}
+.flex1{
+  flex:1
+}

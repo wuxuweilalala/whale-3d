@@ -1,0 +1,12 @@
+
+@font-face {
+    font-family: DM;
+    src: url('http://24e-img.oss-cn-shenzhen.aliyuncs.com/static/font/DINCOND-MEDIUM.OTF');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.iconfont {
+    font-size: 0.8vw;
+}

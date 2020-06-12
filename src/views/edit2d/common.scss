@@ -1,0 +1,89 @@
+/*四边*/
+
+.borderBox .t,
+.borderBox .b,
+.borderBox .l,
+.borderBox .r {
+    position: absolute;
+    z-index: 1;
+    background: #666;
+}
+
+.borderBox .l,
+.borderBox .r {
+    width: 0.2604166666666667vw;
+    height: 100%;
+    cursor: col-resize;
+}
+
+.borderBox .t,
+.borderBox .b {
+    width: 100%;
+    height: 0.5336179295624334vh;
+    cursor: row-resize;
+}
+
+.borderBox .t {
+    top: 0;
+}
+
+.borderBox .b {
+    bottom: 0;
+}
+
+.borderBox .l {
+    left: 0;
+}
+
+.borderBox .r {
+    right: 0;
+}
+
+
+/*四角*/
+
+.borderBox .tl,
+.borderBox .bl,
+.borderBox .br,
+.borderBox .tr {
+    width: 0.5208333333333334vw;
+    height: 1.0672358591248667vh;
+    position: absolute;
+    background: #fff;
+    border: 1px solid #666;
+    z-index: 2;
+    cursor: nwse-resize;
+}
+
+.borderBox .tl,
+.borderBox .bl {
+    left: -0.2604166666666667vw;
+}
+
+.borderBox .tr,
+.borderBox .br {
+    right: -0.2604166666666667vw;
+}
+
+.borderBox .br,
+.borderBox .bl {
+    bottom: -0.5336179295624334vh;
+}
+
+.borderBox .tl,
+.borderBox .tr {
+    top: -0.5336179295624334vh;
+}
+
+.borderBox .tr,
+.borderBox .bl {
+    cursor: nesw-resize;
+}
+
+
+/*内核*/
+
+.inner {
+    width: 100%;
+    height: 100%;
+}
