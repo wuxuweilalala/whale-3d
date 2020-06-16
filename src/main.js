@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import App from './App.vue'
-import { Slider ,Upload,Loading,Pagination,Radio, RadioGroup,Message ,Dialog} from 'element-ui'
+import { Slider ,Upload,Loading,Pagination,Radio, RadioGroup,Message,MessageBox,Dialog} from 'element-ui'
 import router from './router'
 import { store } from './store/store'
 import db from './utils/db';
@@ -24,6 +24,7 @@ Vue.use(Pagination);
 Vue.use(Dialog);
 // Vue.use(Message);
 Vue.prototype.$message = Message
+Vue.prototype.$confirm = MessageBox.confirm;
 Vue.use(Radio);
 Vue.use(RadioGroup);
 Vue.use(Loading.directive);

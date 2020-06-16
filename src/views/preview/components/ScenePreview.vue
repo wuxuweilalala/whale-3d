@@ -87,10 +87,6 @@
                 self.shelves = new self.$THREE.Box3();
                 obj.scale.set(0.05, 0.05, 0.05);
                 self.shelves.expandByObject(obj);
-                for (let i in obj.children) {
-                    // obj.children[i].material.transparent = true;//是否透明
-                    // obj.children[i].material.opacity = 0.5;
-                }
                 let shelves_width = self.shelves.max.x - self.shelves.min.x;
                 let x_space = 0;
                 for (let i = 0; i < length + 1; i++) {

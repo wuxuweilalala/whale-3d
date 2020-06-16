@@ -1,7 +1,7 @@
 <template>
     <div class="edit2" @click="clearActive('all')" @mousedown="editMouseEvent">
         <div class="sidebar">
-            <div class="backBtn" @click.stop="addActive($event, 'backBtnActive')" ref="backBtn"></div>
+            <div class="backBtn" @click.stop="backClickEvent" ref="backBtn"></div>
             <div class="help" @click.stop="addActive($event, 'helpActive')" ref="help"></div>
         </div>
 
@@ -60,13 +60,13 @@
                             ref="addFloor"
                     ></div> -->
                 </div>
-                <div class="floorTitleRight">
-                    <!-- <div>场地大小</div>
-                    <input type="text" class="inputLeft" placeholder="5000"/>
-                    <div class="closeIcon"></div>
-                    <input type="text" class="inputRight" placeholder="5000"/>
-                    <div>m</div> -->
-                </div>
+<!--                <div class="floorTitleRight">-->
+<!--                    <div>场地大小</div>-->
+<!--                    <input type="text" class="inputLeft" placeholder="5000"/>-->
+<!--                    <div class="closeIcon"></div>-->
+<!--                    <input type="text" class="inputRight" placeholder="5000"/>-->
+<!--                    <div>m</div>-->
+<!--                </div>-->
             </div>
             <div class="edit-content">
 
@@ -80,7 +80,7 @@
                             @drop.stop="workDropEvent"
                             ref="workPlace"
                     >
-                        <canvas class="class-workPlace" width="2584" height="2000" ref="refWorkPlace"></canvas>
+                        <canvas class="class-workPlace" width="6000" height="3000" ref="refWorkPlace"></canvas>
                         <!-- 组件 -->
                         <template v-for="(item, index) in itemfloor.componentList">
                             <!-- 默认第一项 -->
@@ -89,6 +89,7 @@
                                 <div
                                         v-for="(itemChild, indexChild) in item.itemList"
                                         :is="itemChild.name"
+                                        :index="indexChild"
                                         :item="itemChild"
                                         :key="indexChild"
                                         @click.native="changeChildIndex(indexChild, index)"
@@ -164,23 +165,23 @@
                 </template>
             </div>
 
-            <div :class="posContent">
-                <div class="posHeader">
-                    <span class="posIcon"></span>
-                    <span>属性</span>
-                </div>
-                <div class="posMain">
-                    <div class="mainTop">
-                        X:<input class="classInput" v-model="posLeft" @blur="inputBlurEvent" name="left" type="text" placeholder="距离左边的位置">
-                        Y:<input class="classInput" v-model="posTop" @blur="inputBlurEvent" name="top" type="text" placeholder="距离上边的位置">
+            <div class="position-main">
+                <div :class="posContent">
+                    <div class="posHeader">
+                        <span class="posIcon"></span>
+                        <span>属性</span>
                     </div>
-                    <div class="mainBottom" v-show="numShow">
-                        {{ elementName }}:<input class="classInput" v-model="posNum" @blur="inputBlurEvent" name="num" type="text" placeholder="请输入数量">
-<!--                        Y:<input class="classInput" type="text" placeholder="请输入距离上边的位置">-->
+                    <div class="posMain" ref="posMain">
+                        <div class="mainTop">
+                            Left:<input class="classInput" ref="classInput" v-model="posLeft" @blur="inputBlurEvent" name="left" type="text" placeholder="距离左边的位置">
+                            Top:<input class="classInput" ref="classInput" v-model="posTop" @blur="inputBlurEvent" name="top" type="text" placeholder="距离上边的位置">
+                        </div>
+                        <div class="mainBottom">
+                            <span v-show="numShow">{{ elementName }}:<input class="classInput" ref="classInput" v-model="posNum" @blur="inputBlurEvent" name="num" type="text" placeholder="请输入数量"></span>
+                            <span v-show="spaceShow">{{ spaceName }}:<input class="classInput" ref="classInput" v-model="posSpace" @blur="inputBlurEvent" name="space" type="text" placeholder="请输入数量"></span>
+                        </div>
                     </div>
                 </div>
-
-
             </div>
             <div class="layerFooter">
                 <div class="layerFooterBox" ref="layerFooterBox">
@@ -208,10 +209,10 @@
 </template>
 
 <script>
-    import bzq from './bzq/bzq.vue'; // 播种墙
-    import gd from './gd/gd.vue'; // 轨道
-    import hj from './hj/hj.vue'; // 货架
-    import other from './other/other.vue'; // 其他
+    import bzq from './components/station.vue'; // 播种墙
+    import gd from './components/track.vue'; // 轨道
+    import hj from './components/shelves.vue'; // 货架
+    import other from './components/other.vue'; // 其他
     import station from '../../assets/2dEdit/station@2.png'; // 播种墙
     import guidao from '../../assets/2dEdit/guidao@2.png'; // 轨道
     import huojia from '../../assets/2dEdit/huojia@2.png'; // 货架
@@ -287,13 +288,13 @@
                         name: '拣货通道',
                         bg: 'pickingChannel',
                         bgImg: pickingChannel,
-                        componentName: 'bzq',
+                        componentName: 'hj',
                     },
                     {
-                        name: 'pst通道',
+                        name: 'PST通道',
                         bg: 'PSBPassageway',
                         bgImg: PSBPassageway,
-                        componentName: 'bzq',
+                        componentName: 'hj',
                     },
                 ],
                 floorList: [
@@ -386,7 +387,9 @@
                 selectModuleList: [],
                 selectModuleLeftTopList: [],
                 elementName: '货架数量',
+                spaceName: '间距',
                 numShow: true,
+                spaceShow: true,
                 posContent: {
                     posContent: true,
                     none: true,
@@ -394,14 +397,23 @@
                 posLeft: '',    // 距离左边的位置
                 posTop: '',     // 距离上边的位置
                 posNum: '',     // 数量
+                posSpace: '',   // 间距
                 selectedElement: null,  // 选中的元素
+                selectedIndex: -1,   // 选中元素的下标
+                componentId: 0,     // 组件 ID
             };
+        },
+        created() {
+            if(localStorage.getItem('floorList')) {
+                this.floorList = JSON.parse(localStorage.getItem('floorList'))
+            }
         },
         mounted() {
             // 初始化默认选择第一个楼层
             this.chooseFloor(0);
             this.remove();
             this.drawGrid();
+            this.setFloorName();
         },
         computed: {
             ...mapGetters('edit', {
@@ -410,7 +422,8 @@
                 getTrackWidth: 'getTrackWidth',
                 getTrackPos: 'getTrackPos',
                 getPsbPos: 'getPsbPos',
-                getBoxValue: 'getBoxValue'
+                getBoxValue: 'getBoxValue',
+                getModelOption: 'getModelOption',
             }),
             unitList: {
                 get: function () {
@@ -426,23 +439,38 @@
                 setTrackWidth: 'setTrackWidth',
                 setShelve: 'setShelve',
                 setBoxValue: 'setBoxValue',
-                changeBox: 'changeBox'
+                setModelOptions: 'setModelOptions',
+                setOptions: 'setOptions',
+                changeBox: 'changeBox',
             }),
+            setFloorName() {
+                let num = {
+                    1: '一层',
+                    2: '二层',
+                }
+                let index = this.$route.query.index
+                console.log('index', index)
+                if(index === undefined) {
+                    this.floorList[0].floorName = '一层'
+                } else {
+                    this.floorList[0].floorName = num[index]
+                }
+            },
             // 绘制线条
             drawLine(work) {
                 let ctx = work.getContext('2d');
                 ctx.lineWidth = 0.4
                 ctx.strokeStyle = "gray";
-                let width = 5000
-                let height = 5000
-                for (let j = 0; j < 100; j++) {
+                let width = 6000
+                let height = 4000
+                for (let j = 0; j < 200; j++) {
                     let y = j * 30
                     ctx.beginPath();
                     ctx.moveTo(0, y);
                     ctx.lineTo(width, y);
                     ctx.stroke();
                 }
-                for (let k = 0; k < 100; k++) {
+                for (let k = 0; k < 200; k++) {
                     let x = k * 30
                     ctx.beginPath();
                     ctx.moveTo(x, 0);
@@ -476,13 +504,10 @@
 
                 if (this.div) {
                     for (let i = 0; i < this.$refs.workPlace.length; i++) {
-                        try {
-                            this.$refs.workPlace[i].removeChild(this.div);
-                            this.div = null;
-                            this.changeComponentStyle('clear');
-                        } catch (error) {
-                            console.log('选框以移除');
-                        }
+                        // 2020-06-13 linwenjun
+                        this.$refs.workPlace[i].removeChild(this.div);
+                        this.div = null;
+                        this.changeComponentStyle('clear');
                     }
                 }
             },
@@ -558,31 +583,71 @@
                     this.chooseFloor(this.thisFloorIndex - 1);
                 }
             },
+            /**
+             * @author hfm
+             */
+            backClickEvent(event) {
+                this.addActive(event, 'backBtnActive')
+                this.open()
+            },
+            /**
+            * @Description
+            * @author HuangFangming
+            * @date 2020/6/12
+             * 弹窗
+            */
+            open() {
+                this.$confirm('是否保存配置?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.$message({
+                        type: 'success',
+                        message: '保存成功!'
+                    });
+                    sessionStorage.setItem('isEdit', true)
+                    this.$router.back(-1)
+                }).catch(() => {
+                    this.$message.error('已取消保存');
+                    sessionStorage.setItem('isEdit', true)
+                    localStorage.removeItem('floorList')
+                    this.$router.back(-1)
+                });
+            },
             // 添加激活背景
             addActive(e, name) {
                 this.clearActive(name);
-                console.log(name);
                 e.target.classList.add(name);
             },
             // 取消激活的背景
             clearActive(name) {
-                try {
+
+                // 2020-06-13 linwenjun
+                if(this.$refs.backBtn) {
                     this.$refs.backBtn.classList.remove('backBtnActive');
-                    this.$refs.help.classList.remove('helpActive');
-                    this.$refs.addFloor.classList.remove('addFloorActive');
-                    let arr = this.$refs.layerFooterBox.children;
-                    for (let i = 0; i < arr.length; i++) {
-                        arr[i].classList.remove('operation');
-                    }
-                    let arr2 = this.$refs.modelBoxC;
-                    for (let i = 0; i < arr2.length; i++) {
-                        arr2[i].classList.remove('modelBoxBg');
-                    }
-                    this.$refs.operationBoradLRBorderActive1[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
-                    this.$refs.operationBoradLRBorderActive2[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
-                } catch (error) {
-                    console.log(error);
                 }
+                if(this.$refs.help) {
+                    this.$refs.help.classList.remove('helpActive');
+                }
+
+                // this.$refs.addFloor.classList.remove('addFloorActive');
+                let arr = this.$refs.layerFooterBox.children;
+                for (let i = 0; i < arr.length; i++) {
+                    arr[i].classList.remove('operation');
+                }
+                let arr2 = this.$refs.modelBoxC;
+                for (let i = 0; i < arr2.length; i++) {
+                    arr2[i].classList.remove('modelBoxBg');
+                }
+                if(this.$refs.operationBoradLRBorderActive1.length != 0) {
+                    this.$refs.operationBoradLRBorderActive1[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
+                }
+
+                if(this.$refs.operationBoradLRBorderActive2.length != 0) {
+                    this.$refs.operationBoradLRBorderActive2[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
+                }
+
             },
             // 点击模型添加背景
             modelBox(index, name) {
@@ -609,9 +674,17 @@
                 this.offset.x = event.offsetX;
                 this.offset.y = event.offsetY - 15;
             },
+            addModelOption() {
+                this.setModelOptions({
+                    name: this.dragItem.name,
+                    num: -1,
+                    space: -1,
+                })
+            },
             // 拖拽生成模型
             workDropEvent(event) {
                 if (this.addModule) {
+                    this.addModelOption()
                     this.getParentTag(this.$refs.workPlace[this.thisFloorIndex]);
                     let left = event.clientX - this.dom1Left;
                     let top = event.clientY - this.dom1Top;
@@ -634,7 +707,9 @@
                                 x: this.offset.x,
                                 y: this.offset.y
                             },
-                            generateModelName: this.dragItem.name
+                            generateModelName: this.dragItem.name,
+                            num: this.posNum,
+                            space: this.posSpace,
                         });
                     } else {
                         this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.push({
@@ -649,7 +724,9 @@
                                 x: this.offset.x,
                                 y: this.offset.y
                             },
-                            generateModelName: this.dragItem.name
+                            generateModelName: this.dragItem.name,
+                            num: this.posNum,
+                            space: this.posSpace,
                         });
                     }
 
@@ -657,14 +734,11 @@
                     this.unitList[this.clickIndex].infoList.push(this.dragItem.name);
                     this.unitList = [...this.unitList];
                 }
-                console.log(this.floorList)
             },
             // 拖拽结束
             modelDragendEvent(event) {
-                this.log('left top ((((', this.getPsbPos)
                 let left = this.getPsbPos.left
                 let top = this.getPsbPos.top
-                this.log('tracks', this.$refs.tracks, event, this.getPsbPos)
                 if (this.getPositions.length > 0 && this.dragItem.name === 'PSB') {
                     this.log('psb test', this.dragItem);
                     let width = this.$vwToPx(this.getTrackWidth.width.replace('vw', ''));
@@ -712,9 +786,9 @@
                     }
                     this.log('posArray', posArray);
                 }
-                this.log(' drag end')
                 this.draggable = false;
                 this.addModule = false;
+                this.updataDate()
             },
             // 接受拖拽事件
             workDragoverEvent(event) {
@@ -733,31 +807,27 @@
                     this.$refs.rorateIcon[index].classList.add('openIcon');
                 }
 
-                try {
-                    this.floorList[this.thisFloorIndex].unitList.forEach((item, index) => {
-                        item.infoList.forEach((itemChild, indexChild) => {
-                            if (this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.contains('border-style')) {
-                                this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.remove('border-style');
-                            }
-                        });
+                // 2020-06-13 linwenjun
+                this.floorList[this.thisFloorIndex].unitList.forEach((item, index) => {
+                    item.infoList.forEach((itemChild, indexChild) => {
+                        if (this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.contains('border-style')) {
+                            this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.remove('border-style');
+                        }
                     });
-                } catch (error) {
-                    console.log('清除图层样式错误');
-                }
+                });
+
             },
             // 展示子图层
             childOpenIcon(e, childIndex, index) {
-                try {
-                    this.floorList[this.thisFloorIndex].unitList.forEach((item, index) => {
-                        item.infoList.forEach((itemChild, indexChild) => {
-                            if (this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.contains('border-style')) {
-                                this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.remove('border-style');
-                            }
-                        });
+
+                // 2020-06-13 linwenjun
+                this.floorList[this.thisFloorIndex].unitList.forEach((item, index) => {
+                    item.infoList.forEach((itemChild, indexChild) => {
+                        if (this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.contains('border-style')) {
+                            this.$refs[`rorateChildIcon${index}-${indexChild}`][0].classList.remove('border-style');
+                        }
                     });
-                } catch (error) {
-                    console.log('清除图层样式错误');
-                }
+                });
 
                 // 修改父级的索引标志, 来显示或隐藏边框
                 this.clickIndex = index; // 保存点击的图层
@@ -792,11 +862,7 @@
             // 删除图层
             delLayer() {
                 // 更新top， 因为子组件的left不会导致父组件传递的left更新
-                let arr2 = Array.from(this.getAllDom())
-                this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.forEach((item, index) => {
-                    item.left = this.pxToNum(arr2[index].style.left)
-                    item.top = this.pxToNum(arr2[index].style.top)
-                })
+                 this.updataDate()
 
                 // ------------------------------------------------------------------------------------------------
                 if (this.floorList[this.thisFloorIndex].unitList[this.clickIndex].infoList.lenght != 0) {
@@ -811,6 +877,7 @@
                     console.log(this.floorList[this.thisFloorIndex].componentList)
                     // this.floorList[this.thisFloorIndex].componentList[this.clickIndex].splice(this.clickIndex, 1);
                 }
+
             },
             // copy图层
             copyLayer() {
@@ -850,64 +917,6 @@
                     // 记录div的初始位置值用于限制范围 和 设置它的创始初始位置
                     this.div.style.left = e.clientX - this.dom1Left + 'px';
                     this.div.style.top = e.clientY - this.dom1Top + 'px';
-
-                    // this.div.addEventListener('mousedown', e => {
-                    //     this.div.style.cursor = 'move';
-                    //     this.divOffsetLeft = 0;
-                    //     this.divOffsetTop = 0;
-                    //
-                    //     this.divMoveBeforeLeft = this.div.style.left;
-                    //     this.divMoveBeforeTop = this.div.style.top;
-                    //
-                    //     e.stopPropagation(); // 取消右键点击默认事件, 阻止冒泡到this.$refs.workPlace触发鼠标按下事件
-                    //     this.getParentTag(this.div, 'div');
-                    //     this.getParentTag(this.$refs.workPlace[this.thisFloorIndex]); // div移动时必须重新获取, 因为鼠标弹起this.$refs.workPlace清除了dom1Left, dom1Top
-                    //     // 获取点击的距离
-                    //     this.divStartLeft = e.clientX - this.divOffsetLeft;
-                    //     this.divStartTop = e.clientY - this.divOffsetTop;
-                    //     this.isDivMove = true;
-                    //
-                    //     // 框选移动(1): 记录每一个module按下的位置: 用于div框选计算选中移动
-                    //     for (let i = 0; i < this.selectModuleList.length; i++) {
-                    //         this.selectModuleLeftTopList.push({
-                    //             left: this.selectModuleList[i].style.left.replace('px', '') * 1,
-                    //             top: this.selectModuleList[i].style.top.replace('px', '') * 1
-                    //         });
-                    //     }
-                    // });
-                    // window.addEventListener('mousemove', e => {
-                    //     e.stopPropagation(); // 取消右键点击默认事件, 阻止冒泡到this.$refs.workPlace触发鼠标按下事件
-                    //     if (!this.isDivMove) return;
-                    //
-                    //     this.div.style.left = e.clientX - this.dom1Left - this.divStartLeft + 'px';
-                    //     this.div.style.top = e.clientY - this.dom1Top - this.divStartTop + 'px';
-                    //
-                    //     this.moduleMove();
-                    //
-                    //     // 框选限制
-                    //     let divMovePosition = {
-                    //         left: e.clientX,
-                    //         top: e.clientY
-                    //     };
-                    //     // 鼠标移动left - 鼠标距离div左边的left <= 操作板left(到body距离)
-                    //     if (divMovePosition.left - this.divStartLeft <= this.dom1Left) {
-                    //         divMovePosition.left = this.dom1Left + this.divStartLeft;
-                    //     }
-                    //     if (divMovePosition.top - this.divStartTop <= this.dom1Top) {
-                    //         divMovePosition.top = this.dom1Top + this.divStartTop;
-                    //     }
-                    //     //  操作板left(到body距离)+操作板的offsetWidth <= 鼠标移动div的left+鼠标到盒子右边的距离(盒子大小-鼠标->left的值)
-                    //     if (this.dom1Left + this.div.offsetParent.offsetWidth <= divMovePosition.left + (this.div.offsetWidth - this.divStartLeft)) {
-                    //         divMovePosition.left = this.dom1Left + this.div.offsetParent.offsetWidth - (this.div.offsetWidth - this.divStartLeft);
-                    //     }
-                    //     if (this.dom1Top + this.div.offsetParent.offsetHeight <= divMovePosition.top + (this.div.offsetHeight - this.divStartTop)) {
-                    //         divMovePosition.top = this.dom1Top + this.div.offsetParent.offsetHeight - (this.div.offsetHeight - this.divStartTop);
-                    //     }
-                    //
-                    //     this.div.style.left = divMovePosition.left - this.dom1Left - this.divStartLeft + 'px';
-                    //     this.div.style.top = divMovePosition.top - this.dom1Top - this.divStartTop + 'px';
-                    // });
-
                     this.$refs.workPlace[this.thisFloorIndex].appendChild(this.div);
                     this.isMove = true;
                     this.startLeft = e.clientX;
@@ -917,10 +926,9 @@
                 }
             },
             selectOtherDom(e) {
-                try {
+                // 2020-06-13 linwenjun
+                if(this.div) {
                     this.div.style.cursor = 'default';
-                } catch (error) {
-                    console.log('div已移出, 没有默认鼠标样式');
                 }
                 // 重置操作板到body的距离
                 this.dom1Left = 0;
@@ -1047,18 +1055,13 @@
                 let left = divLeft - parseInt(this.divMoveBeforeLeft.replace('px', ''));
                 let top = divTop - parseInt(this.divMoveBeforeTop.replace('px', ''));
 
-                // this.selectModuleList[i].style.top = this.selectModuleLeftTopList[i].top + top + 'px'
-                // this.selectModuleList[i].style.left = this.selectModuleList[i].style.left.replace('px', '') + left + 'px' => this.selectModuleList[i].style.left +=  left + 'px'  // 就会不断变大
-                // this.selectModuleList[i].style.top = this.selectModuleList[i].style.top.replace('px', '') + top + 'px' +> 应该是鼠标按下就就好位置, 选择的)
-
-                console.log(this.selectModuleList, '============================================================')
                 for (let i = 0; i < this.selectModuleList.length; i++) {
                     this.selectModuleList[i].style.left = this.selectModuleLeftTopList[i].left + left + 'px';
                     this.selectModuleList[i].style.top = this.selectModuleLeftTopList[i].top + top + 'px';
                 }
             },
             // 校准
-            /* 
+            /*
                 冒泡对比两个元素的left   小 -> 大
             */
             calibration() {
@@ -1072,21 +1075,8 @@
                     // 拣货通道 pst通道 播种墙
                     screenList: []
                 }
-                
-                let arr = Array.from(this.getAllDom());
-
-                for (let i = 0; i < arr.length; i++) { 
-                    for (let j = 0; j < arr.length - 1; j++) {
-                        // 对所有模型进行排列(left)
-                         if (this.pxToNum(arr[j].style.left) > this.pxToNum(arr[j + 1].style.left)) {
-                            let temp = arr[j];
-                            arr[j] = arr[j + 1];
-                            arr[j + 1] = temp;
-                        }
-                    }
-                }
-                // 冒泡完成 小 -》 大
-                console.log(arr)
+                // 冒泡 ： 从左到右排序
+                let arr = this.recursionList(Array.from(this.getAllDom()))
 
                 // 播种墙标志
                 let isSeedingWall = false, firstSeedingWall, seedingWallList = [];
@@ -1114,32 +1104,27 @@
                         TrackList.push(arr[index])
                         console.log('轨道已存在', TrackList)
                     }
-
                     if(arr[index].dataset['name'] == 'PSB') {
                         isPSB = true;
                         PSBList.push(arr[index])
                         console.log('psb已存在', PSBList)
                     }
-
                     // 货架
                     if(arr[index].dataset['name'] == '货架') {
                         isGoodsShelves = true;
                         goodsShelvesList.push(arr[index])
                     }
-
                     // 堆塔
                     if(arr[index].dataset['name'] == '堆塔') {
                         console.log('堆塔存在')
                         isHeapedTower = true;
                         heapedTowerList.push(arr[index])
                     }
-
                     // 分拣员
                     if(arr[index].dataset['name'] == '分拣员') {
                         isSorter = true;
                         sorterList.push(arr[index])
                     }
-
                     // 推车
                     if(arr[index].dataset['name'] == '推车') {
                         isGardenCart = true
@@ -1151,27 +1136,22 @@
                     if(arr[i].className != 'toolOther') {
                         arr[i].style.top = this.vhVwToPx('vh', '12vh') + 'px'
                     }
-
-                    for (let j = 0; j < arr.length - 1; j++) { 
-
+                    for (let j = 0; j < arr.length - 1; j++) {
                         // 修改播种墙的left
                         if(arr[i].dataset['name'] == '轨道' && isSeedingWall == true) {
                             arr[i].style.left = firstSeedingWall.style.left
                             isSeedingWall = 'ok'
                         }
-
                         // 对所有相同模型进行排列(left)
                         if ((arr[j].className == arr[j + 1].className)) {
                             console.log(arr[j].className)
                             // 第一个比第二个left大
-
                             let offsetWidth, offsetHeight
                             if(arr[j].children.length != 0) {
                                 offsetWidth = arr[j].children[0].offsetWidth
                                 } else {
                                 offsetWidth = arr[j].offsetWidth
                             }
-
                             // 高度是否大于本身高度 并且两个盒子left重叠(除了不需要处理: 推车堆塔分拣员工作站)
                             if(this.pxToNum(arr[j].style.left) >= this.pxToNum(arr[j + 1].style.left) && arr[j].dataset['name'].indexOf('推车堆塔分拣员工作站') == -1) {
                                 // 它们之间的left小于offsetWidth, 调整距离; 否则不做处理
@@ -1189,35 +1169,8 @@
                         } else {
                             console.log('class不一样')
                         }
-
                     }
                 }
-
-                /* 
-                // 只有轨道
-                if(isTrack && !isSeedingWall && isPSB) {
-                    console.log('只有轨道， 没有播种墙')
-
-                    let length = TrackList[0].children.length
-                    PSBList.forEach((item, index) => {
-
-                        // TODO: 先写死， 以后使用vuex  公式：2(n-1) +> 2(n+1-1)
-                        item.style.top = this.pxToNum(TrackList[0].children[2*(index)%length].style.top) + 20 + vhTopx + 'px'
-                        
-                        item.style.left = this.pxToNum(TrackList[0].style.left) + 8 + 30*Math.floor(index/6) + 'px'
-
-                    })
-                }
-
-                // 分拣员 和 推车
-                if(isSeedingWall && isSorter) {
-                    sorterList.forEach((item, index) => {
-                        item.style.top = this.pxToNum(TrackList[0].children[2*(index)%length].style.top) + 20 + vhTopx + 'px'
-                        item.style.left = this.pxToNum(seedingWallList[1].style.left) - 30 + 'px'
-                    })
-                }
-                */
-
                 // psb 和 播种墙
                 if(isSeedingWall&&isPSB) {
                     PSBList.forEach((item, index) => {
@@ -1234,67 +1187,13 @@
                         item.style.left = this.pxToNum(goodsShelvesList[index].style.left) + this.vhVwToPx('vw', '0.52vw') + 'px'
                     })
                 }
-
-                /* 
-                // 轨道+播种墙1+PSB
-                else if(isTrack && isSeedingWall && seedingWallList.length > 0 && isPSB) {
-                    let length = TrackList[0].children.length
-                    PSBList.forEach((item, index) => {
-
-                        // TODO: 先写死， 以后使用vuex  公式：2(n-1) => 索引从0开始 +> 2(n+1-1)
-                        item.style.top = this.pxToNum(TrackList[0].children[2*(index)%length].style.top) + 20 + vhTopx + 'px'
-                        item.style.left = this.pxToNum(seedingWallList[0].style.left) + 8 + 30*Math.floor(index/6) + 'px'
-                        
-                    })
-                }
-                // 轨道+播种墙2+货架/堆塔
-                if(isTrack && isSeedingWall && seedingWallList.length == 2) {
-                    console.log('轨道+播种墙2+货架')
-                    if(isGoodsShelves) {
-                        goodsShelvesList.forEach((item, index) => {
-                            console.log(seedingWallList[1].style.left)
-                            // 播种墙位置0-1的间隔
-                            item.style.left = this.pxToNum(seedingWallList[0].style.left)
-                            item.style.left = this.pxToNum(seedingWallList[1].style.left) + 60 * (index+1) + 'px'
-                        })
-                    }
-                    
-
-                    if(isHeapedTower) {
-                        let length = TrackList[0].children.length
-                        heapedTowerList.forEach((item, index) => {
-                            item.style.top =  20 + vhTopx + 'px'
-                            item.style.left = this.pxToNum(seedingWallList[1].style.left) + 60 * (index+1) + 10 + 'px'
-                            
-                        })
-                    }
-
-                } 
-                //  轨道+播种墙4+货架/堆塔
-                else if(isTrack && isSeedingWall && seedingWallList.length == 4) {
-                    if(isGoodsShelves) {
-                        goodsShelvesList.forEach((item, index) => {
-                            console.log(seedingWallList[1].style.left)
-                            item.style.left = this.pxToNum(seedingWallList[3].style.left) + 60 * (index+1) + 'px'
-                        })
-                    }
-                     if(isHeapedTower) {
-                        let length = TrackList[0].children.length
-                        heapedTowerList.forEach((item, index) => {
-                            item.style.top =  20 + vhTopx + 'px'
-                            item.style.left = this.pxToNum(seedingWallList[3].style.left) + 60 * (index+1) + 10 + 'px'
-                            
-                        })
-                    }
-                }
-                */
-
                 let maxObj = {
                     MaxRight: 0,
                     MaxBottom: 0
                 }
                 // 获取右/下边的最大值来调整轨道
-                let mewArr = Array.from(this.getAllDom());
+                let mewArr = this.recursionList(Array.from(this.getAllDom()))
+
                 mewArr.forEach((item, index) => {
                     if(item.dataset['name'] == '堆塔') {
                         let left = this.pxToNum(item.style.left)+this.pxToNum(item.lastElementChild.style.left)+item.lastElementChild.offsetWidth
@@ -1308,7 +1207,7 @@
                         console.log('堆塔')
                         console.log(this.pxToNum(item.style.left), (item.children.length/6-1)*6, item.children[0].offsetWidth)
                         // console.log((this.pxToNum(item.children[1].style.top)-this.pxToNum(item.children[0].style.top))*5+item.children[0].offsetHeight)
-                        
+
                     }
                     else if(item.dataset['name'] == '货架') {
                         let left = this.pxToNum(item.style.left)+this.pxToNum(item.lastElementChild.style.left)+ item.lastElementChild.offsetWidth
@@ -1322,18 +1221,17 @@
                     }
                     else {
                         if(item.dataset['name'] != '轨道') {
-                            
+
                             let left = this.pxToNum(item.style.left)+item.offsetWidth
-                            let top = this.pxToNum(item.style.top)+item.offsetHeight 
+                            let top = this.pxToNum(item.style.top)+item.offsetHeight
                             if(left>maxObj.MaxRight) {
-                                maxObj.MaxRight = this.pxToNum(item.style.left)+item.offsetWidth 
+                                maxObj.MaxRight = this.pxToNum(item.style.left)+item.offsetWidth
                             }
                             if(top>maxObj.MaxBottom) {
-                                maxObj.MaxBottom = this.pxToNum(item.style.top)+item.offsetHeight 
+                                maxObj.MaxBottom = this.pxToNum(item.style.top)+item.offsetHeight
                             }
 
                         }
-                        
                     }
 
                     // 保存调整后的数据
@@ -1350,6 +1248,7 @@
                             }
                         )
                     }
+
                     // 货架
                     if(arr[index].dataset['name'] == '货架') {
                         data.goodsShelvesList.push(
@@ -1380,12 +1279,20 @@
                         )
                     }
 
-                    // 拣货通道
+                    // 拣货通道 2020-6-12 lwj
                     if('拣货通道 pst通道 播种墙'.indexOf(arr[index].dataset['name']) != -1) {
+                        let name = ''
+                        if(arr[index].dataset['name'] == '拣货通道') {
+                            name = 'pickingChannel'
+                        } else if(arr[index].dataset['name'] == 'pst通道') {
+                            name = 'PSBPassageway'
+                        } else {
+                            name = 'seedingWall'
+                        }
                         data.screenList.push(
                             {
                                 id: data.screenList.length+1,
-                                name: 'screen-' + (data.screenList.length+1),
+                                name: `${name}-` + (data.screenList.length+1),
                                 left: arr[index].style.left,
                                 top: arr[index].style.top,
                                 offsetWidth: this.pxToNum(arr[index].lastElementChild.style.left)+arr[index].lastElementChild.offsetWidth,
@@ -1396,20 +1303,8 @@
                     }
 
                 })
-                // 修改轨道宽度
-                TrackList.forEach((item, index) => {
-                    // item.style.width = maxObj.MaxRight + 'px'
-                    if(mewArr.length != 1) {
-                        for(let i = 0; i < item.children.length; i++) {
-                            item.children[i].style.width = maxObj.MaxRight - this.pxToNum(item.style.left) + this.vhVwToPx('vw', '1.04vw') + 'px'
-                            if((this.vhVwToPx('vw', item.children[i].style.width) || this.pxToNum(item.children[i].style.width))  < this.vhVwToPx('vw', '10vw')) {
-                                item.children[i].style.width = this.vhVwToPx('vw', '10vw') + 'px'
-                            } 
-                        }
-                    }
-                })
-                console.log(maxObj)
-                console.log(data)
+
+                this.updataDate()
 
             },
             // px 转 number
@@ -1433,6 +1328,19 @@
                 }
                 return output
             },
+            recursionList(Arr) {
+                for (let i = 0; i < Arr.length; i++) {
+                    for (let j = 0; j < Arr.length - 1; j++) {
+                        // 对所有模型进行排列(left)
+                         if (this.pxToNum(Arr[j].style.left) > this.pxToNum(Arr[j + 1].style.left)) {
+                            let temp = Arr[j];
+                            Arr[j] = Arr[j + 1];
+                            Arr[j + 1] = temp;
+                        }
+                    }
+                }
+                return Arr
+            },
             // 生成
             generate() {
             },
@@ -1443,16 +1351,64 @@
                     let key = event.key;
                     if (key === 'Delete') {
                         self.delLayer();
+                        let result = this.getModelOption
+                        result.splice(this.selectedIndex, 1)
+                        this.setOptions(result)
                     }
                 });
             },
+            setNumOrSpace(num, space) {
+                let option = this.getModelOption[this.selectedIndex]
+                if(this.posNum == '') {
+                    if(option['num'] !== -1) {
+                        num = option.num
+                    } else {
+                        num = 1
+                    }
+                }
+                if(this.posSpace == '') {
+                    if(option['space'] !== -1) {
+                        space = option.space
+                    } else {
+                        space = 60
+                    }
+                }
+                num = parseInt(num)
+                space = parseInt(space)
+                if(this.selectedElement.classList.contains('track-list')) {
+                    this.setModelOptions({
+                        trackWidth: num * 37.6 + 'vw',
+                        trackNum: parseInt(num * 12),
+                        num: num,
+                        index: this.selectedIndex,
+                        space: space,
+                        name: 'track',
+                    })
+                } else if(this.selectedElement.classList.contains('shelves')) {
+                    this.setModelOptions({
+                        shelvesNum: parseInt(num),
+                        shevlesSpace: space,
+                        name: 'shelves',
+                        num: num,
+                        space: space,
+                        index: this.selectedIndex,
+                    })
+                } else if(this.selectedElement.classList.contains('box')) {
+                    this.setModelOptions({
+                        boxColumns: parseInt(this.posNum),
+                        boxSpace: space,
+                        num: num,
+                        space: space,
+                        index: this.selectedIndex,
+                        name: 'box',
+                    })
+                }
+            },
             // 输入框失去焦点事件
             inputBlurEvent(event) {
-                this.log('event name', event, event.target.name)
                 let name = event.target.name
                 if(name === 'left') {
                     if(this.posLeft !== '') {
-                        this.log(`${this.posLeft}px`)
                         this.selectedElement.style.left = `${this.posLeft}px`
                     }
                 } else if(name === 'top') {
@@ -1461,31 +1417,15 @@
                     }
                 } else if(name === 'num') {
                     this.log(this.selectedElement.classList)
-                    if(this.selectedElement.classList.contains('track-list')) {
-                        this.setTrackWidth({
-                            width: this.posNum * 37.3 + 'vw'
-                        })
-                    } else if(this.selectedElement.classList.contains('shelves')) {
-                        this.setShelve({
-                            shelvesNum: parseInt(this.posNum)
-                        })
-                    } else if(this.selectedElement.classList.contains('box')) {
-                        this.setBoxValue({
-                            boxColumns: parseInt(this.posNum),
-                        })
+                    if(this.posNum !== '') {
+                        this.setNumOrSpace(this.posNum, this.posSpace)
                     }
-
+                } else if(name === 'space') {
+                    if(this.posSpace !== '') {
+                        this.setNumOrSpace(this.posNum, this.posSpace)
+                    }
                 }
-                // console.log(this.getBoxValue)
-                // this.$nextTick(() => {
-                //     this.changeBox({
-                //         xSpace: 60, // x 的间距
-                //         ySpace: 80, // y 的间距
-                //         boxColumns: 1, // 堆塔一列的数量
-                //         boxRows: 6, // 堆塔一行的数量
-                //     })
-                // })
-                // console.log(this.getBoxValue)
+                this.updataDate()
             },
             findElement(paths, className) {
                 for (let i = 0; i < paths.length; i++) {
@@ -1500,6 +1440,7 @@
                 this.posLeft = ''
                 this.posTop = ''
                 this.posNum = ''
+                this.posSpace = ''
             },
             // 全局鼠标按下事件
             editMouseEvent(event) {
@@ -1508,9 +1449,29 @@
                 this.log('bool', bool)
                 if(!bool) {
                     this.posContent.none = true
+                    this.$refs.posMain.blur()
                     this.setAllValue()
+                    // let inputs = document.querySelectorAll('.classInput')
+                    // for (let i = 0; i < inputs.length; i++) {
+                    //     let input = inputs[i]
+                    //     input.blur()
+                    // }
                 }
             },
+            updated() {
+                this.updataDate()
+                console.log(this.floorList)
+            },
+            updataDate() {
+                let arr2 = Array.from(this.getAllDom())
+                this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.forEach((item, index) => {
+                    item.left = this.pxToNum(arr2[index].style.left)
+                    item.top = this.pxToNum(arr2[index].style.top)
+                    item.num = this.posNum
+                    item.space = this.posSpace
+                })
+                localStorage.setItem('floorList',JSON.stringify(this.floorList))
+            }
         },
         watch: {
             // selectedElement:{
@@ -1890,44 +1851,51 @@
                 }
             }
             .none {
-                opacity: 0;
+                /*opacity: 0;*/
+                display: none;
             }
-            .posContent {
+            .position-main {
                 width: 16.6vw;
                 height: 20vh;
                 background-color: #262626;
-                .posIcon {
-                    width: 1.1vw;
-                    height: 1.9vh;
-                    background: url('../../assets/scene/tuceng@2.png');
-                    background-size: 100% 100%;
-                    display: inline-block;
-                    margin: 0 0.5vw;
-                }
-                .posHeader {
+                .posContent {
                     width: 16.6vw;
-                    background-color: #2f2f2f;
-                    height: 3.7vh;
-                    line-height: 3.7vh;
-                    font-size: 0.9vw;
-                }
-                .posMain {
-                    width: 16.6vw;
-                    .classInput {
-                        width: 5vw;
+                    height: 20vh;
+                    background-color: #262626;
+                    .posIcon {
+                        width: 1.1vw;
+                        height: 1.9vh;
+                        background: url('../../assets/scene/tuceng@2.png');
+                        background-size: 100% 100%;
+                        display: inline-block;
                         margin: 0 0.5vw;
-                        border: 0.1vh solid #a59a9a;
-                        background-color: black;
-                        height: 2.8vh;
-                        font-size: 0.5vw;
-                        color: white;
                     }
-                    .mainTop, .mainBottom {
-                        margin: 0.5vw;
-                        text-align: left;
+                    .posHeader {
+                        width: 16.6vw;
+                        background-color: #2f2f2f;
+                        height: 3.7vh;
+                        line-height: 3.7vh;
+                        font-size: 0.9vw;
+                    }
+                    .posMain {
+                        width: 16.6vw;
+                        .classInput {
+                            width: 4.6vw;
+                            margin: 0 0.5vw;
+                            border: 0.1vh solid #a59a9a;
+                            background-color: black;
+                            height: 2.8vh;
+                            font-size: 0.5vw;
+                            color: white;
+                        }
+                        .mainTop, .mainBottom {
+                            margin: 0.5vw;
+                            text-align: left;
+                        }
                     }
                 }
             }
+
 
             .layerFooter {
                 width: 16.6vw;

@@ -19,6 +19,7 @@
     import { mapMutations } from 'vuex';
     import sonHeader from "@/components/SonHeader";
     import LeftSide from "./components/LeftSide";
+    import router from '../../router/index'
     export default {
         name: "index",
         components: {LeftSide, sonHeader},
@@ -31,6 +32,12 @@
             sessionStorage.setItem('enteredIndex', true)
             next();
         },
+        created() {
+            // if(sessionStorage.getItem('isEdit')) {
+            //     this.isEdit = true
+            //     console.log(this.isEdit)
+            // }
+        },
         methods: {
             ...mapMutations('index', {
                 setEnteredIndex: 'setEnteredIndex',
@@ -38,7 +45,7 @@
             changeLoad(payload) {
                 this.loading = payload;
             }
-        }
+        },
     }
 </script>
 

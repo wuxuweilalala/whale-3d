@@ -197,9 +197,11 @@
 <!--                    </div>-->
                     <div class="item shelves">
                         <span class="text">样式</span>
-                        <span :class="basicType" @click="basicClickEvent">默认样式</span><br>
-                        <span :class="editType" @click="editClickEvent">自定义样式</span>
-                        <span class="enter2d" v-show="enterShow" @click="enterEdit2d">进入页面</span>
+                        <div @click="basicClickEvent">
+                            <span :class="basicType">默认样式</span><br>
+                            <span :class="editType">自定义样式</span>
+                            <span class="enter2d" v-show="enterShow" @click="enterEdit2d(1)">进入页面</span>
+                        </div>
                     </div>
                     <div class="item stationTip"
                       v-show="stationTipShow">
@@ -219,13 +221,14 @@
                         <span class="unit">个</span>
                     </div>
                     <div class="item shelves">
-                        <span class="text">货架数量</span>
-                        <input @blur="stationBlurEvent"
-                          class="itemInput"
-                          placeholder="20"
-                          type="text"
-                          v-model="sceneOption[1].shelvesUnitNum">
-                        <span class="unit">个</span>
+                        <span class="text">样式</span>
+                        <div @click="basicF2ClickEvent">
+                            <span :class="basicF2Type">默认样式</span><br>
+                            <span :class="hasType">已经编辑好的样式</span><br>
+                            <span :class="editF2Type">自定义样式</span>
+                            <span class="enter2d" v-show="enterF2Show" @click="enterEdit2d(2)">进入页面</span>
+                        </div>
+
                     </div>
                     <div class="item stationTip"
                       v-show="stationTipShow">
@@ -257,6 +260,7 @@
                          handleIsCreateWrapperShow(false);
                          resetProjectInfo();
                          setAllOption();
+                         sessionStorage.setItem('isEdit', false)
                     }"
                       aria-hidden="true"
                       class="icon">
@@ -491,13 +495,31 @@
                 basicType: {
                     type: true,
                     typeActive: true,
+                    basic: true,
                 },
                 editType: {
                     type: true,
                     typeActive: false,
+                    edit: true,
+                },
+                basicF2Type: {
+                    type: true,
+                    typeActive: true,
+                    basic: true,
+                },
+                hasType: {
+                    type: true,
+                    typeActive: false,
+                    has: true,
+                },
+                editF2Type: {
+                    type: true,
+                    typeActive: false,
+                    edit: true,
                 },
                 // 是否显示进入页面
                 enterShow: false,
+                enterF2Show: false,
             };
         },
         props: {
@@ -565,24 +587,6 @@
                         ${this.$vwToPx(0.2)},${this.$vwToPx(0.18)}
                 `
             },
-        },
-        mounted() {
-            // 添加全局事件 点击弹出框外部时 弹出框隐藏
-            // document.body.addEventListener('click', () => {
-            // 	this.handleIsCreateWrapperShow(false);
-            // 	this.resetProjectInfo();
-            // 	this.isShareDialogShow = false;
-            // }, false);
-            // console.log(document.querySelector('.projectList'), this.$refs.projectList, document);
-            // this.projectBoxWidth = document.querySelector('.projectList').clientWidth
-            // this.projectBoxHeight = document.querySelector('.projectList').clientHeight
-            this.$nextTick(function () {
-                if (this.$refs.projectList) {
-                    this.projectBoxWidth = this.$refs.projectList[0].clientWidth;
-                    this.projectBoxHeight = this.$refs.projectList[0].clientHeight;
-                    this.$emit('load', false)
-                }
-            })
         },
         methods: {
             // 调用 vuex 公用方法
@@ -680,7 +684,6 @@
                     // 打来弹框
                     this.handleIsCreateWrapperShow(true)
                 }
-
             },
             addFloor() {
                 this.sceneOption.push({
@@ -745,6 +748,9 @@
                 this.whalehouseID = '';
                 this.requestUrl = '';
                 this.areaTipShow = false;
+                this.enterShow = false;
+                this.basicType.typeActive = true;
+                this.editType.typeActive = false;
             },
             createProject() {
                 if (!this.stationTipShow) {
@@ -806,6 +812,7 @@
                     this.setProjectName(projectName)
                     this.setAllOption()
                     this.toggleFloorTabActiveIndex(0)
+                    sessionStorage.setItem('isEdit', false)
                     // this.resetProjectInfo();
                 }
             },
@@ -834,6 +841,7 @@
                 this.areaHeight = '';
                 this.usedAreaWidth = '';
                 this.usedAreaHeight = '';
+                sessionStorage.setItem('isEdit', false)
             },
             // 上一步操作的点击事件
             previousStep() {
@@ -842,6 +850,7 @@
                 this.resetProjectInfo();
                 this.projectName = '新建项目';
                 this.areaTipShow = false;
+                sessionStorage.setItem('isEdit', false)
                 // this.setAreaNull();
             },
             projectFocus(index) {
@@ -895,22 +904,73 @@
                     url: this.getCurrentProject.projectDetail.requestUrl,
                 })
             },
-            basicClickEvent() {
-                this.basicType.typeActive = true
-                this.editType.typeActive = false
-                this.enterShow = false
+            /**
+             * 切换 样式的点击事件
+             * @param event
+             */
+            basicClickEvent(event) {
+                let list = event.target.classList
+                if(list.contains('basic')) {
+                    this.basicType.typeActive = true
+                    this.editType.typeActive = false
+                    this.enterShow = false
+                } else if(list.contains('edit')) {
+                    this.basicType.typeActive = false
+                    this.editType.typeActive = true
+                    this.enterShow = true
+                }
             },
-            editClickEvent() {
-                this.basicType.typeActive = false
-                this.editType.typeActive = true
-                this.enterShow = true
+            /**
+             * 切换 第二层样式的点击事件
+             * @param event
+             */
+            setTypeFalse() {
+                this.basicF2Type.typeActive = false
+                this.hasType.typeActive = false
+                this.editF2Type.typeActive = false
+            },
+            basicF2ClickEvent(event) {
+                let list = event.target.classList
+                this.setTypeFalse()
+                if(list.contains('basic')) {
+                    this.basicF2Type.typeActive = true
+                    this.enterF2Show = false
+                } else if(list.contains('has')) {
+                    this.hasType.typeActive = true
+                    this.enterF2Show = false
+                } else if(list.contains('edit')) {
+                    this.editF2Type.typeActive = true
+                    this.enterF2Show = true
+                }
             },
             // 进入 2d 编辑器页面的点击事件
-            enterEdit2d() {
+            enterEdit2d(index) {
+                let projectData = {
+                    projectName: this.projectName,
+                    areaInfo: [{
+                        // 总面积的长宽
+                        value: {
+                            width: parseInt(this.areaWidth),
+                            height: parseInt(this.areaHeight),
+                        }
+                    }, {
+                        // 使用面积的长宽
+                        value: {
+                            width: parseInt(this.usedAreaWidth),
+                            height: parseInt(this.usedAreaHeight),
+                        }
+                    },],
+                    whalehouseID: this.whalehouseID,
+                    requestUrl: this.requestUrl,
+                }
+                sessionStorage.setItem('projectData', JSON.stringify(projectData))
+
                 this.$router.push({
                     path: '/edit2d',
+                    query: { index },
                 })
             },
+
         },
         watch: {
             'projectListFilter.length'(length) {
@@ -924,8 +984,38 @@
                 })
             },
         },
+        mounted() {
+            this.$nextTick(function () {
+                if (this.$refs.projectList) {
+                    this.projectBoxWidth = this.$refs.projectList[0].clientWidth;
+                    this.projectBoxHeight = this.$refs.projectList[0].clientHeight;
+                    this.$emit('load', false)
+                }
+            })
+        },
         created() {
-            // this.getProjectData();
+            /**
+             *
+             * @作者: LinWenJun
+             * @修改行数：start：1015 ; end：1027
+             * @时间 2020/06/13 10:47:03
+             */
+            if(sessionStorage.getItem('isEdit') === 'true') {
+                if(sessionStorage.getItem('projectData')) {
+                    this.sceneOptionShow = true
+                    this.enterShow = true
+                    this.basicType.typeActive = false
+                    this.editType.typeActive = true
+                    let projectData = JSON.parse(sessionStorage.getItem('projectData'))
+                    this.projectName = projectData.projectName
+                    this.requestUrl = projectData.requestUrl
+                    this.whalehouseID = projectData.whalehouseID
+                    this.areaWidth = projectData.areaInfo[0].value.width
+                    this.areaHeight = projectData.areaInfo[0].value.height
+                    this.usedAreaWidth = projectData.areaInfo[1].value.width
+                    this.usedAreaHeight = projectData.areaInfo[1].value.height
+                }
+            }
         },
 
     };
@@ -1632,6 +1722,7 @@
                     .enter2d {
                         color: #ffac29;
                         padding-left: 0.7vw;
+                        cursor: pointer;
                     }
                     /*flex-wrap: nowrap;*/
                     .text {

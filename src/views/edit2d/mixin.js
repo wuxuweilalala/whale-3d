@@ -22,13 +22,25 @@ export default {
             default: () => {
                 return {};
             }
-        }
+        },
+        index: Number,
     },
     methods: {
         ...mapMutations('edit', {
             setZIndex: 'setZIndex',
             setTrackPos: 'setTrackPos',
         }),
+        // 设置父组件的值
+        setParentValue(name, spaceShow=true, numShow=true) {
+            // 显示属性框
+            this.$parent.posContent.none = false
+            this.$parent.selectedIndex = this.index
+            this.$parent.elementName = name
+            this.$parent.selectedElement = this.dom
+            this.$parent.numShow = numShow
+            this.$parent.spaceShow = spaceShow
+            this.$parent.setAllValue()
+        },
         mouseup(event) {
             window.onmousemove = ''
             this.mouseX = 0
@@ -157,10 +169,12 @@ export default {
     },
     created() {
         console.log('Model名称为: item', this.generateModelName)
+        console.log('（（（（（（（（', this.item)
     },
     computed: {
         ...mapGetters('edit', {
             getZIndex: 'getZIndex',
+
         }),
         // zIndex() {
         //     return this.getZIndex

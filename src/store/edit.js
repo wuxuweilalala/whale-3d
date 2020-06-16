@@ -51,14 +51,8 @@ export default {
             space: 60,
         },
         shelves: [],
-        box: {
-            xSpace: 60, // x 的间距
-            ySpace: 80, // y 的间距
-            boxColumns: 1, // 堆塔一列的数量
-            boxRows: 6, // 堆塔一行的数量
-        },
         boxItems: [], // 堆塔数组
-
+        modelOptions: [],   // 模型配置数组
     },
     getters: {
         getModelList: (state) => state.modelList,
@@ -68,10 +62,16 @@ export default {
         getPositions: state => state.positions,
         getTrackPos: state => state.trackPos,
         getPsbPos: state => state.psbPos,
-        getShelve: state => state.shelve,
-        getShelvesArray: state => state.shelves,
         getBoxItems: state => state.boxItems,
-        getBoxValue: state => state.box,
+        getModelOption: state => {
+            let option = localStorage.getItem('modelOptions')
+            if(option !== null) {
+                state.modelOptions = JSON.parse(option)
+            } else {
+                state.modelOptions = []
+            }
+            return state.modelOptions
+        },
     },
     mutations: {
         setStateByKey(state, { key, value }) {
@@ -111,9 +111,21 @@ export default {
         setBoxItems(state, data) {
             state.boxItems = data
         },
-        setBoxValue(state, data) {
-            for (let i in data) {
-                state.box[i] = data[i]
+        setModelOptions(state, data) {
+            let option = localStorage.getItem('modelOptions')
+            if(option !== null) {
+                state.modelOptions = JSON.parse(option)
+            } else {
+                state.modelOptions = []
+            }
+            if(data.index !== undefined) {
+                state.modelOptions[data.index] = data
+            } else {
+                state.modelOptions.push(data)
+            }
+            console.log('model option', state.modelOptions)
+            if(state.modelOptions.length > 0) {
+                localStorage.setItem('modelOptions', JSON.stringify(state.modelOptions))
             }
         },
         changeBox(state, box) {
