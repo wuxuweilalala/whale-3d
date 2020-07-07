@@ -1,9 +1,10 @@
 <template>
-    <div class="edit2" @click="clearActive('all')" @mousedown="editMouseEvent">
-        <div class="sidebar">
-            <div class="backBtn" @click.stop="backClickEvent" ref="backBtn"></div>
-            <div class="help" @click.stop="addActive($event, 'helpActive')" ref="help"></div>
-        </div>
+    <div class="edit2"
+      @mousedown="editMouseEvent">
+        <!--        <div class="sidebar">-->
+        <!--            <div class="backBtn" @click.stop="backClickEvent" ref="backBtn"></div>-->
+        <!--            <div class="help" @click.stop="addActive($event, 'helpActive')" ref="help"></div>-->
+        <!--        </div>-->
 
         <!-- 模型库 -->
         <div class="modelBase">
@@ -12,64 +13,30 @@
                 <span>模型库</span>
             </div>
             <div class="modelBaseContent">
-                <div v-for="(item, index) in modelBaseList" :key="index" class="modelBox"
-                     @click.stop="modelBox(index, 'modelBoxBg')">
+                <div v-for="(item, index) in modelBaseList"
+                  :key="index"
+                  class="modelBox"
+                  @click.stop="modelBox(index, 'modelBoxBg')">
                     <div
-                            class="model"
-                            :imgName="modelBaseList"
-                            @mousedown="mouseDownEvent"
-                            :draggable="draggable"
-                            @dragstart="modelDragstartEvent($event, item)"
-                            @drag="modelDragEvent"
-                            @dragend="modelDragendEvent"
-                            :class="{ [item.bg]: true }"
-                            ref="modelBoxC"
+                      class="model"
+                      :imgName="modelBaseList"
+                      @mousedown="mouseDownEvent"
+                      :draggable="draggable"
+                      @dragstart="modelDragstartEvent($event, item)"
+                      @drag="modelDragEvent"
+                      @dragend="modelDragendEvent"
+                      :class="{ [item.bg]: true }"
+                      ref="modelBoxC"
                     ></div>
                     <div class="modelTitle">{{ item.name }}</div>
                 </div>
+
             </div>
         </div>
 
         <!-- 楼层 -->
         <div class="floor">
-            <div class="floorTitle">
-                <div class="floorTitleLeft">
-                    <div style="height: 1.6vh;font-size: 1.7vh;line-height: 2.2vh;;margin: 0.5vw;flex-shrink: 0;">
-                        楼层
-                        <!-- width: 1.9vw -->
-                    </div>
-                    <div
-                            v-for="(item, index) in floorList"
-                            :key="index"
-                            class="everyFloor"
-                            :class="{ thisFloor: index == thisFloorIndex }"
-                            @click="chooseFloor(index)"
-                            ref="chooseFloor"
-                    >
-                        <div>{{ item.floorName }}</div>
-                        <!-- 删除楼层 -->
-                        <!-- <div @click.stop="delFloor(index)" class="closeIcon"></div> -->
-                    </div>
-                    <!-- 添加楼层 -->
-                    <!-- <div
-                            class="addFloor"
-                            @click.stop="
-							addFloor(thisFloorIndex);
-							addActive($event, 'addFloorActive');
-						"
-                            ref="addFloor"
-                    ></div> -->
-                </div>
-<!--                <div class="floorTitleRight">-->
-<!--                    <div>场地大小</div>-->
-<!--                    <input type="text" class="inputLeft" placeholder="5000"/>-->
-<!--                    <div class="closeIcon"></div>-->
-<!--                    <input type="text" class="inputRight" placeholder="5000"/>-->
-<!--                    <div>m</div>-->
-<!--                </div>-->
-            </div>
-            <div class="edit-content">
-
+            <div class="edit-content" ref="editContent" @scroll="handleScrollEvent">
                 <template v-for="(itemfloor, indexfloor) in floorList">
                     <div
                             :key="indexfloor"
@@ -80,53 +47,37 @@
                             @drop.stop="workDropEvent"
                             ref="workPlace"
                     >
-                        <canvas class="class-workPlace" width="6000" height="3000" ref="refWorkPlace"></canvas>
+                        <canvas class="class-workPlace"
+                          :width="width"
+                          :height="height"
+                          ref="refWorkPlace"></canvas>
                         <!-- 组件 -->
                         <template v-for="(item, index) in itemfloor.componentList">
                             <!-- 默认第一项 -->
-                            <div v-if="itemfloor.unitList[clickIndex].unitId == item.unitId" :key="index"
-                                 ref="allComponents" style="position: relative;width: 200%;height: 100%;">
+                            <div :key="index"
+                              ref="allComponents"
+                              style="position: relative;width: 200%;height: 100%;">
                                 <div
-                                        v-for="(itemChild, indexChild) in item.itemList"
-                                        :is="itemChild.name"
-                                        :index="indexChild"
-                                        :item="itemChild"
-                                        :key="indexChild"
-                                        @click.native="changeChildIndex(indexChild, index)"
+                                  v-for="(itemChild, indexChild) in item.itemList"
+                                  :is="itemChild.name"
+                                  :index="indexChild"
+                                  :componentIds="componentIds"
+                                  :item="itemChild"
+                                  :key="indexChild"
+                                  @click.native="changeChildIndex(indexChild, index)"
                                 ></div>
+                                <!--                                <div class="border" :style="borderStyle">-->
+
+                                <!--                                </div>-->
                             </div>
                         </template>
 
-                        <div class="operationBorad">
-                            <!-- 处理事件冒泡 -->
-                            <div
-                                    class="operationBoradLeft"
-                                    @click.stop="
-									addActive($event, 'operationBoradLRBorderActive');
-									calibration();
-								"
-                                    @mouseup.stop="function(){}"
-                                    @mousedown.stop="function(){}"
-                            >
-                                <div class="operationBoradLeftIcon"></div>
-                                <div class="operationBoradLeftText">校准</div>
-                                <div style="position: absolute;width: 100%; height: 100%;"
-                                     ref="operationBoradLRBorderActive1"></div>
-                            </div>
-                            <!-- 处理事件冒泡 -->
-                            <div
-                                    class="operationBoradRight"
-                                    @click.stop="
-									addActive($event, 'operationBoradLRBorderActive');
-									generate();
-								"
-                                    @mouseup.stop="function(){}"
-                                    @mousedown.stop="function(){}"
-                            >
-                                <div class="operationBoradRightIcon"></div>
-                                <div class="operationBoradRightText">生成</div>
-                                <div style="position: absolute;width: 100%; height: 100%;"
-                                     ref="operationBoradLRBorderActive2"></div>
+                        <div class="operationBorad"
+                          @click="calibration">
+                            <div>
+                                <img src="../../assets/scene/correct.png"
+                                  alt="">
+                                <span>校准</span>
                             </div>
                         </div>
                     </div>
@@ -136,6 +87,20 @@
 
         <!-- 图层 -->
         <div class="layer">
+            <div class="btns">
+                <span class="span-btn done"
+                  @click="btnEvent(0)">
+                    <img src="../../assets/2dEdit/done.png"
+                      alt="">
+                    <span>保存</span>
+                </span>
+                <span class="span-btn exit"
+                  @click="btnEvent(1)">
+                    <img src="../../assets/2dEdit/exit.png"
+                      alt="">
+                    <span>退出</span>
+                </span>
+            </div>
             <div class="layerTitle">
                 <div class="layerTitleIcon"></div>
                 图层
@@ -143,66 +108,113 @@
 
             <div class="layerContent">
                 <template v-for="(item, index) in floorList[thisFloorIndex].unitList">
-                    <div v-if="unitList.length != 0" :key="index" @click.stop="showData(item.infoList, index)"
-                         class="unitTitle">
-                        <div :class="{ 'border-style': index == clickIndex }" class="list-item">
-                            <span style="font-size: 1vw; width: 1.5vw; height: 1.5vw;;display: inline-block;"
-                                  ref="rorateIcon" class="collectIcon"></span>
-                            <span style="line-height: 3.7vh;">{{ item.unit }}</span>
-                        </div>
-                        <div ref="unitList" style="display: none;">
-                            <div
-                                    v-for="(childItem, childIndex) in item.infoList"
-                                    :key="childIndex"
-                                    class="uniList"
-                                    @click.stop="childOpenIcon($event, childIndex, index)"
-                                    :ref="'rorateChildIcon' + index + '-' + childIndex"
-                            >
-                                {{ childItem }}
-                            </div>
+                    <div v-if="unitList.length != 0"
+                      :key="index"
+                      class="unitTitle">
+                        <div ref="unitList">
+                            <template v-for="(childItem, childIndex) in item.infoList">
+                                <div v-if="!childItem.isDeleted"
+                                  :key="childIndex"
+                                  class="uniList"
+                                  @click.stop="modelNameClickEvent(childItem.id, childIndex)"
+                                  :data-id="childItem.id"
+                                  :ref="'modelName' + childIndex"
+                                  :style="{ border: childItem.border }"
+                                >
+                                    <span>{{ childItem.name }}</span>
+                                    <span class="removeIcon">
+                                            <img @click.stop="removeClickEvent(childItem.id, childIndex)"
+                                              src="../../assets/2dEdit/delete.png"
+                                              alt="">
+                                    </span>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>
             </div>
 
             <div class="position-main">
-                <div :class="posContent">
+                <div class="posContent">
                     <div class="posHeader">
                         <span class="posIcon"></span>
                         <span>属性</span>
                     </div>
-                    <div class="posMain" ref="posMain">
-                        <div class="mainTop">
-                            Left:<input class="classInput" ref="classInput" v-model="posLeft" @blur="inputBlurEvent" name="left" type="text" placeholder="距离左边的位置">
-                            Top:<input class="classInput" ref="classInput" v-model="posTop" @blur="inputBlurEvent" name="top" type="text" placeholder="距离上边的位置">
+                    <div :class="posContent"
+                      ref="posMain"
+                      @keydown.enter="enterKeyEvent"
+                      @click="posClickEvent">
+                        <div>
+                            <span>Left</span>
+                            <input :class="inputClass[0]"
+                              ref="classInput"
+                              v-model="posLeft"
+                              @blur="inputBlurEvent"
+                              name="left"
+                              type="text"
+                              placeholder="距离左边的位置">
                         </div>
-                        <div class="mainBottom">
-                            <span v-show="numShow">{{ elementName }}:<input class="classInput" ref="classInput" v-model="posNum" @blur="inputBlurEvent" name="num" type="text" placeholder="请输入数量"></span>
-                            <span v-show="spaceShow">{{ spaceName }}:<input class="classInput" ref="classInput" v-model="posSpace" @blur="inputBlurEvent" name="space" type="text" placeholder="请输入数量"></span>
+                        <div>
+                            <span>Top</span>
+                            <input :class="inputClass[1]"
+                              ref="classInput"
+                              v-model="posTop"
+                              @blur="inputBlurEvent"
+                              name="top"
+                              type="text"
+                              placeholder="距离上边的位置">
+                        </div>
+                        <div v-show="numShow">
+                            <span>数量</span>
+                            <input :class="inputClass[2]"
+                              ref="classInput"
+                              v-model="posNum"
+                              @blur="inputBlurEvent"
+                              name="num"
+                              type="text"
+                              placeholder="请输入数量">
+                        </div>
+                        <div v-show="spaceShow">
+                            <!--                            <span>间距</span>-->
+                            <!--                            <input :class="inputClass[3]"-->
+                            <!--                              ref="classInput"-->
+                            <!--                              v-model="posSpace"-->
+                            <!--                              @blur="inputBlurEvent"-->
+                            <!--                              name="space"-->
+                            <!--                              type="text"-->
+                            <!--                              placeholder="请输入间距">-->
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="layerFooter">
-                <div class="layerFooterBox" ref="layerFooterBox">
-                    <div class="bind" @click.stop="addActive($event, 'operation')"></div>
-                    <!-- 复制图层 -->
-                    <div
-                            class="editGround"
-                            @click.stop="
-							addActive($event, 'operation');
-							copyLayer();
-						"
-                    ></div>
-                    <!-- 删除图层 -->
-                    <div
-                            class="delete"
-                            @click.stop="
-							addActive($event, 'operation');
-							delLayer();
-						"
-                    ></div>
-                </div>
+        </div>
+        <!-- 弹窗 -->
+        <div class="tooltip"
+          v-show="tipShow">
+            <div class="tip-main">
+                <header>
+                    <span>{{ projectName }}</span>
+                    <span @click="closeTip"><img src="../../assets/scene/close.png"
+                      alt=""></span>
+                </header>
+                <section>
+                    <div class="class-station">
+                        <span>单元数</span>
+                        <input type="text"
+                          v-model="stationNum">
+                        <span>个</span>
+                    </div>
+                    <div class="class-line"></div>
+                    <div class="generate">
+                        <span class="generate-msg">是否立即生成</span>
+                        <div class="tip-btns">
+                            <span class="tip-false"
+                              @click="tipBtnClickEvent(false)">否</span>
+                            <span class="tip-true"
+                              @click="tipBtnClickEvent(true)">是</span>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -214,7 +226,7 @@
     import hj from './components/shelves.vue'; // 货架
     import other from './components/other.vue'; // 其他
     import station from '../../assets/2dEdit/station@2.png'; // 播种墙
-    import guidao from '../../assets/2dEdit/guidao@2.png'; // 轨道
+    import guidao from '../../assets/2dEdit/track.png'; // 轨道
     import huojia from '../../assets/2dEdit/huojia@2.png'; // 货架
     import tuiche from '../../assets/2dEdit/tuiche@2.png'; // 推车
     import tuita from '../../assets/2dEdit/tuita@2.png'; // 推塔
@@ -223,7 +235,11 @@
     import gongzuozhan from '../../assets/2dEdit/gongzuozhan@2.png';
     import PSBPassageway from '../../assets/2dEdit/PSBPassageway.png';
     import pickingChannel from '../../assets/2dEdit/pickingChannel.png';
-    import {mapGetters, mapMutations} from 'vuex'; // 推塔
+    import pickWay from '../../assets/2dEdit/pickWay.png';
+    import pstWay from '../../assets/2dEdit/pstWay.png';
+    import {mapActions, mapGetters, mapMutations, mapState} from 'vuex'; // 推塔
+    import Vue from 'vue';
+
     export default {
         components: {
             bzq,
@@ -236,7 +252,7 @@
                 modelBaseList: [
                     {name: '货架', bg: 'carRack', bgImg: huojia, componentName: 'hj'},
                     {
-                        name: '播种墙',
+                        name: '工作站',
                         bg: 'wall',
                         bgImg: station,
                         componentName: 'bzq',
@@ -275,15 +291,15 @@
                         width: '1.3vw',
                         height: '3.5vh'
                     },
-                    {
-                        name: '工作站',
-                        bg: 'station',
-                        bgImg: gongzuozhan,
-                        componentName: 'other',
-                        width: '2.4vw',
-                        height: '3.2vh',
-                        create: true
-                    },
+                    // {
+                    //     name: '工作站',
+                    //     bg: 'station',
+                    //     bgImg: gongzuozhan,
+                    //     componentName: 'other',
+                    //     width: '2.4vw',
+                    //     height: '3.2vh',
+                    //     create: true
+                    // },
                     {
                         name: '拣货通道',
                         bg: 'pickingChannel',
@@ -312,40 +328,11 @@
                                 unitId: '1',
                                 itemList: []
                             }
-                        ] // 所有组件列表
+                        ], // 所有组件列表
+                        width: 6000,
+                        height: 4000,
+                        num: 200,
                     },
-                    // {
-                    //     floorName: '二层',
-                    //     unitList: [
-                    //         {
-                    //             unit: '单元1',
-                    //             unitId: '1',
-                    //             infoList: []
-                    //         }
-                    //     ],
-                    //     componentList: [
-                    //         {
-                    //             unitId: '1',
-                    //             itemList: []
-                    //         }
-                    //     ] // 所有组件列表
-                    // },
-                    // {
-                    //     floorName: '三层',
-                    //     unitList: [
-                    //         {
-                    //             unit: '单元1',
-                    //             unitId: '1',
-                    //             infoList: []
-                    //         }
-                    //     ],
-                    //     componentList: [
-                    //         {
-                    //             unitId: '1',
-                    //             itemList: []
-                    //         }
-                    //     ] // 所有组件列表
-                    // }
                 ],
                 // 初始化点击的索引
                 clickIndex: 0,
@@ -389,9 +376,9 @@
                 elementName: '货架数量',
                 spaceName: '间距',
                 numShow: true,
-                spaceShow: true,
+                spaceShow: false,
                 posContent: {
-                    posContent: true,
+                    posMain: true,
                     none: true,
                 },
                 posLeft: '',    // 距离左边的位置
@@ -400,22 +387,72 @@
                 posSpace: '',   // 间距
                 selectedElement: null,  // 选中的元素
                 selectedIndex: -1,   // 选中元素的下标
-                componentId: 0,     // 组件 ID
+                componentId: '',     // 组件 ID
+                componentIds: [],   // 组件的所有 ID
+                selectedId: '',     // 选中元素的id
+                modelData: [],      // 存储3d模型数据
+                peoplePos: [],      // 存储分拣员的位置
+                stations: [],
+                scrollTop: 0,       // 滚动条的距离
+                scrollLeft: 0,
+                inputClass: [{
+                    classInput: true,
+                    inputActive: false,
+                }, {
+                    classInput: true,
+                    inputActive: false,
+                }, {
+                    classInput: true,
+                    inputActive: false,
+                }, {
+                    classInput: true,
+                    inputActive: false,
+                }],
+                tipShow: false,
+                projectName: '',
+                stationNum: -1,
+                border: '',
+                ruleWidth: this.$vwToPx(0.63),
+                width: 6000,
+                height: 4000,
+                num: 200,
             };
         },
         created() {
+            // this.initModelOption()
+            this.initModelData()
             if(localStorage.getItem('floorList')) {
                 this.floorList = JSON.parse(localStorage.getItem('floorList'))
+                this.width = this.floorList[0].width
+                this.height = this.floorList[0].height
+                this.num = this.floorList[0].num
             }
         },
         mounted() {
             // 初始化默认选择第一个楼层
-            this.chooseFloor(0);
-            this.remove();
-            this.drawGrid();
+            // this.chooseFloor(0);
+            this.drawGrid(this.width, this.height, this.num);
+            this.drawRules(1000, this.width);
             this.setFloorName();
+            this.remove();
+        },
+        beforeRouteEnter(to, form, next) {
+            next(vm => {
+                if (sessionStorage.getItem('fromIndex') !== 'true') {
+                    sessionStorage.setItem('fromIndex', 'false')
+                    next('/index/scene')
+                }
+            })
+        },
+        beforeRouteLeave(to, from, next) {
+            localStorage.removeItem('floorList')
+            localStorage.removeItem('modelOptions')
+            next()
         },
         computed: {
+            ...mapState('edit', {
+                modelOptions: 'modelOptions',
+            }),
             ...mapGetters('edit', {
                 getZIndex: 'getZIndex',
                 getPositions: 'getPositions',
@@ -442,6 +479,11 @@
                 setModelOptions: 'setModelOptions',
                 setOptions: 'setOptions',
                 changeBox: 'changeBox',
+                initModelOption: 'initModelOption',
+                setCurrentProjectData: 'setCurrentProjectData',
+            }),
+            ...mapActions('index', {
+                creatProjectData: 'creatProjectData',
             }),
             setFloorName() {
                 let num = {
@@ -449,20 +491,18 @@
                     2: '二层',
                 }
                 let index = this.$route.query.index
-                console.log('index', index)
-                if(index === undefined) {
+                if (index === undefined) {
                     this.floorList[0].floorName = '一层'
                 } else {
                     this.floorList[0].floorName = num[index]
                 }
             },
             // 绘制线条
-            drawLine(work) {
+            drawLine(work, width, height, num) {
                 let ctx = work.getContext('2d');
                 ctx.lineWidth = 0.4
                 ctx.strokeStyle = "gray";
-                let width = 6000
-                let height = 4000
+
                 for (let j = 0; j < 200; j++) {
                     let y = j * 30
                     ctx.beginPath();
@@ -470,7 +510,7 @@
                     ctx.lineTo(width, y);
                     ctx.stroke();
                 }
-                for (let k = 0; k < 200; k++) {
+                for (let k = 0; k < num; k++) {
                     let x = k * 30
                     ctx.beginPath();
                     ctx.moveTo(x, 0);
@@ -479,18 +519,108 @@
                 }
             },
             // 绘制网格背景
-            drawGrid() {
+            drawGrid(width, height, num = 200) {
                 let workPlaces = this.$refs.refWorkPlace
                 for (let i = 0; i < workPlaces.length; i++) {
                     let work = workPlaces[i]
                     if (work.getContext) {
-                        this.drawLine(work)
+                        this.drawLine(work, width, height, num)
                     }
+                }
+            },
+            // 绘制长方形
+            drawRect(context, x, y, w, h) {
+                context.fillStyle = "rgba(54, 55, 56, 1)";
+                context.fillRect(x, x, w, h);
+            },
+            drawLevelRule(context, left, h, width) {
+                let numIndex = -5
+                for (let i = 0; i < width; i++) {
+                    let height = 0.26
+                    let x = i * this.$vwToPx(0.7) + left;
+                    // console.log('x xxxxxxxx', x)
+                    context.beginPath();
+                    context.strokeStyle = 'rgba(128, 128, 128, 1)';
+                    context.lineWidth = this.$vwToPx(0.05);
+                    context.moveTo(x, h);
+                    // console.log('(i + 1) % 4', (i + 1) % 4)
+                    if ((i + 1) % 4 == 0) {
+                        height = 0.52
+                        context.font = `${h}px ArialMT`;
+                        context.fillStyle = "rgba(239, 239, 239, 1)";
+                        context.fillText(`${numIndex}`, x + 1, 12);
+                        numIndex += 1
+                    }
+                    context.lineTo(x, h - this.$vwToPx(height));
+                    context.stroke();
+                }
+            },
+            drawVerticalRule(context, width = 1000) {
+                let numIndex = 1
+                let start = this.$vwToPx(0.61)
+                let top = this.$vwToPx(1.2)
+                for (let i = 0; i < width; i++) {
+                    let height = 0.31
+                    let y = i * 20 + top;
+                    context.beginPath();
+                    context.strokeStyle = 'rgba(128, 128, 128, 1)';
+                    context.lineWidth = this.$vwToPx(0.05);
+                    context.moveTo(start, y);
+                    // console.log('(i + 1) % 4', (i + 1) % 4)
+                    if ((i + 1) % 4 == 0) {
+                        height = 0.54
+                        let num = String(numIndex)
+                        if (num.length > 0) {
+                            let textTop = this.$vwToPx(0.63)
+                            for (let j = 0; j < num.length; j++) {
+                                let n = num[j]
+                                let dis = textTop * j
+                                context.font = `${this.$vwToPx(0.63)}px ArialMT`;
+                                context.fillStyle = "rgba(239, 239, 239, 1)";
+                                context.fillText(`${n}`, this.$vwToPx(0.21), y + this.$vwToPx(0.63) + dis);
+                            }
+                            numIndex += 1
+                        }
+                    }
+                    context.lineTo(start - this.$vwToPx(height), y);
+                    context.stroke();
+                }
+            },
+            // 绘制标尺
+            drawRules(width = 1000, rectWidth = 6000) {
+                let work = this.$refs.refWorkPlace[0]
+                if (work.getContext) {
+                    let ctx = work.getContext('2d');
+                    let px = this.$vwToPx(0.63)
+                    this.drawRect(ctx, 0, 0, rectWidth, px)
+                    this.drawRect(ctx, 0, px, px, 4000)
+                    ctx.font = `${px}px ArialMT`;
+                    ctx.fillStyle = "rgba(239, 239, 239, 1)";
+                    let left = this.$vwToPx(0.16)
+                    ctx.fillText('0', left, 10);
+                    let first = this.$vwToPx(1.2)
+                    ctx.moveTo(first, px);
+                    this.drawLevelRule(ctx, first, px, width)
+                    this.drawVerticalRule(ctx)
+                }
+            },
+            // 初始化model data 生成模型的数据
+            initModelData() {
+                let model = localStorage.getItem('modelData')
+                let projectData = JSON.parse(sessionStorage.getItem('projectData'))
+                if (projectData !== null) {
+                    this.projectName = projectData.projectName
+                    let index = Number(this.$route.query.index) - 1
+                    this.stationNum = projectData.stationNum[index]
+                }
+                if (model !== null) {
+                    this.modelData = JSON.parse(model)
+                } else {
+                    this.modelData = []
                 }
             },
             // 选择楼层
             chooseFloor(index) {
-                console.log('选择: ', index);
                 this.thisFloorIndex = index;
                 // 清空, 等待虚拟dom更新为dom
                 this.$nextTick(() => {
@@ -500,7 +630,6 @@
                     // 设置
                     this.$refs.chooseFloor[index].style.flexShrink = 0;
                 });
-                console.log(this.floorList[this.thisFloorIndex]);
 
                 if (this.div) {
                     for (let i = 0; i < this.$refs.workPlace.length; i++) {
@@ -513,12 +642,10 @@
             },
             // 添加楼层
             addFloor(index) {
-                console.log(index);
                 if (index >= 4) return;
                 if(this.floorList.length <= 5) {
                     let length = this.nToc(this.floorList.length + 1);
                     let work1 = this.$refs.refWorkPlace
-                    this.log('workd', work1)
                     this.floorList.push({
                         floorName: length + '层',
                         unitList: [
@@ -597,23 +724,29 @@
              * 弹窗
             */
             open() {
-                this.$confirm('是否保存配置?', '提示', {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
+                sessionStorage.setItem('isEdit', true)
+                this.$confirm('退出前必须先点击生成, 否则数据会丢失?', '提示', {
+                    confirmButtonText: '生成',
+                    cancelButtonText: '退出',
                     type: 'warning'
                 }).then(() => {
+                    this.generate(false)
                     this.$message({
                         type: 'success',
-                        message: '保存成功!'
+                        message: '生成成功!'
                     });
-                    sessionStorage.setItem('isEdit', true)
-                    this.$router.back(-1)
                 }).catch(() => {
-                    this.$message.error('已取消保存');
-                    sessionStorage.setItem('isEdit', true)
+                    this.$message({
+                        type: 'success',
+                        message: '退出成功!'
+                    });
+                    this.$router.push({
+                        path: '/index/scene'
+                    })
                     localStorage.removeItem('floorList')
-                    this.$router.back(-1)
+                    localStorage.removeItem('modelOptions')
                 });
+
             },
             // 添加激活背景
             addActive(e, name) {
@@ -624,29 +757,29 @@
             clearActive(name) {
 
                 // 2020-06-13 linwenjun
-                if(this.$refs.backBtn) {
-                    this.$refs.backBtn.classList.remove('backBtnActive');
-                }
-                if(this.$refs.help) {
-                    this.$refs.help.classList.remove('helpActive');
-                }
+                // if(this.$refs.backBtn) {
+                //     this.$refs.backBtn.classList.remove('backBtnActive');
+                // }
+                // if(this.$refs.help) {
+                //     this.$refs.help.classList.remove('helpActive');
+                // }
 
                 // this.$refs.addFloor.classList.remove('addFloorActive');
-                let arr = this.$refs.layerFooterBox.children;
-                for (let i = 0; i < arr.length; i++) {
-                    arr[i].classList.remove('operation');
-                }
-                let arr2 = this.$refs.modelBoxC;
-                for (let i = 0; i < arr2.length; i++) {
-                    arr2[i].classList.remove('modelBoxBg');
-                }
-                if(this.$refs.operationBoradLRBorderActive1.length != 0) {
-                    this.$refs.operationBoradLRBorderActive1[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
-                }
-
-                if(this.$refs.operationBoradLRBorderActive2.length != 0) {
-                    this.$refs.operationBoradLRBorderActive2[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
-                }
+                // let arr = this.$refs.layerFooterBox.children;
+                // for (let i = 0; i < arr.length; i++) {
+                //     arr[i].classList.remove('operation');
+                // }
+                // let arr2 = this.$refs.modelBoxC;
+                // for (let i = 0; i < arr2.length; i++) {
+                //     arr2[i].classList.remove('modelBoxBg');
+                // }
+                // if(this.$refs.operationBoradLRBorderActive1.length != 0) {
+                //     this.$refs.operationBoradLRBorderActive1[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
+                // }
+                //
+                // if(this.$refs.operationBoradLRBorderActive2.length != 0) {
+                //     this.$refs.operationBoradLRBorderActive2[this.thisFloorIndex].classList.remove('operationBoradLRBorderActive');
+                // }
 
             },
             // 点击模型添加背景
@@ -656,6 +789,7 @@
             },
             // 鼠标按下(图标)
             mouseDownEvent(event) {
+                console.log('test *********')
                 this.draggable = true;
             },
             // 拖拽中...(图标)
@@ -666,57 +800,113 @@
             },
             // 拖拽开始
             modelDragstartEvent(event, item) {
+                console.log('拖拽事件')
                 this.addModule = true;
                 this.dragItem = item;
-                this.log('this drag item', this.dragItem, event);
                 this.dom1Left = 0;
                 this.dom1Top = 0;
                 this.offset.x = event.offsetX;
                 this.offset.y = event.offsetY - 15;
             },
             addModelOption() {
-                this.setModelOptions({
-                    name: this.dragItem.name,
-                    num: -1,
-                    space: -1,
-                })
+                let name = this.dragItem.name
+                if(name === '货架' || name === '拣货通道' || name === 'PST通道') {
+                    this.setModelOptions({
+                        id: this.componentId,
+                        name: this.dragItem.name,
+                        shelvesNum: 1,
+                        shevlesSpace: 60,
+                        num: 1,
+                        space: 60,
+                        isDeleted: false,
+                    })
+                } else if(name === '堆塔') {
+                    this.setModelOptions({
+                        id: this.componentId,
+                        name: this.dragItem.name,
+                        boxColumns: 1,
+                        boxSpace: 60,
+                        num: 1,
+                        space: 60,
+                        isDeleted: false,
+                    })
+                } else if(name === '轨道') {
+                    this.setModelOptions({
+                        id: this.componentId,
+                        name: this.dragItem.name,
+                        trackNum: 1,
+                        trackWidth: '2.8vw',
+                        num: 1,
+                        space: 60,
+                        isDeleted: false,
+                    })
+                } else {
+                    this.setModelOptions({
+                        id: this.componentId,
+                        name: this.dragItem.name,
+                        num: 1,
+                        space: 60,
+                        isDeleted: false,
+                    })
+                }
+
+            },
+            // 生成 uuid
+            uuid() {
+                var s = [];
+                var hexDigits = "0123456789abcdef";
+                for (var i = 0; i < 36; i++) {
+                    s[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+                }
+                s[14] = "4"; // bits 12-15 of the time_hi_and_version field to 0010
+                s[19] = hexDigits.substr((s[19] & 0x3) | 0x8, 1); // bits 6-7 of the clock_seq_hi_and_reserved to 01
+                s[8] = s[13] = s[18] = s[23] = "-";
+
+                var uuid = s.join("");
+                return uuid;
             },
             // 拖拽生成模型
             workDropEvent(event) {
                 if (this.addModule) {
+                    this.componentId = this.uuid()
+                    // this.componentIds.push(this.componentId)
                     this.addModelOption()
                     this.getParentTag(this.$refs.workPlace[this.thisFloorIndex]);
                     let left = event.clientX - this.dom1Left;
                     let top = event.clientY - this.dom1Top;
 
+
                     if (this.dragItem.width) {
-                        this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.push({
+                        this.floorList[0].componentList[0].itemList.push({
+                            id: this.componentId,
                             name: this.dragItem.componentName,
                             modelName: this.dragItem.name,
                             // left: left,
                             // top: top,
                             // 解决删除布局错乱
-                            left: left-this.offset.x,
-                            top: top-this.offset.y,
+                            left: left - this.offset.x + this.scrollLeft,
+                            top: top - this.offset.y + this.scrollTop,
                             bgImg: this.dragItem.bgImg,
                             width: this.dragItem.width,
                             height: this.dragItem.height,
                             offsetParentLeft: this.dom1Left,
                             offsetParentTop: this.dom1Top,
+                            border: '',
                             offset: {
                                 x: this.offset.x,
                                 y: this.offset.y
                             },
                             generateModelName: this.dragItem.name,
-                            num: this.posNum,
-                            space: this.posSpace,
+                            isDeleted: false,
                         });
                     } else {
-                        this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.push({
+                        this.floorList[0].componentList[0].itemList.push({
+                            id: this.componentId,
                             name: this.dragItem.componentName,
                             modelName: this.dragItem.name,
-                            left: left,
-                            top: top,
+                            left: left + this.scrollLeft,
+                            top: top + this.scrollTop,
+                            border: '',
                             bgImg: this.dragItem.bgImg,
                             offsetParentLeft: this.dom1Left,
                             offsetParentTop: this.dom1Top,
@@ -725,14 +915,21 @@
                                 y: this.offset.y
                             },
                             generateModelName: this.dragItem.name,
-                            num: this.posNum,
-                            space: this.posSpace,
+                            isDeleted: false,
                         });
                     }
 
                     // 否则就是添加单元的工具
-                    this.unitList[this.clickIndex].infoList.push(this.dragItem.name);
+                    this.unitList[this.clickIndex].infoList.push({
+                        id: this.componentId,
+                        name: this.dragItem.name,
+                        isDeleted: false,
+                        border: '',
+                    });
                     this.unitList = [...this.unitList];
+                    this.setModelBorder()
+                    let index = this.floorList[0].componentList[0].itemList.length - 1
+                    this.floorList[0].unitList[0].infoList[index].border = '0.05vw solid rgba(230, 162, 64, 1)'
                 }
             },
             // 拖拽结束
@@ -740,12 +937,10 @@
                 let left = this.getPsbPos.left
                 let top = this.getPsbPos.top
                 if (this.getPositions.length > 0 && this.dragItem.name === 'PSB') {
-                    this.log('psb test', this.dragItem);
                     let width = this.$vwToPx(this.getTrackWidth.width.replace('vw', ''));
                     let widthSplit = this.$vwToPx(parseInt(this.getTrackWidth.width.replace('vw', '')) / this.getTrackWidth.num);
                     let height = this.getPositions[this.getPositions.length - 1].top - this.getPositions[0].top;
                     // let this.getPositions.length
-                    this.log('this.getPositions', this.getPositions);
                     let posArray = [];
                     let len = parseInt(this.getPositions.length / 12);
                     let psbWidth = this.$vwToPx(2);
@@ -756,15 +951,11 @@
                         let posLeft = this.getTrackPos.left;
                         let posTop = this.getTrackPos.top;
                         let heightSingle = this.getPositions[index + 1].top - posTop + this.$vhToPx(2.1);
-                        this.log('posLeft posTop', posLeft, posTop);
                         let levelPos = -1;
                         let verticalPos = -1;
-                        this.log('test ****((((((((', posLeft, left, posTop, top)
                         if (posLeft <= left && left + psbWidth < width + posLeft && posTop <= top && top + psbHeight < posTop + height) {
                             for (let i = 0; i < this.getTrackWidth.num; i++) {
                                 let bool = posLeft + widthSplit * i <= left && left + psbWidth <= posLeft + widthSplit * (i + 1);
-                                this.log('rows ', posLeft + widthSplit * i, left, left + psbWidth, posLeft + widthSplit * (i + 1))
-                                this.log('bool**', bool);
                                 if (bool) {
                                     levelPos = i;
                                 }
@@ -784,7 +975,6 @@
                             });
                         }
                     }
-                    this.log('posArray', posArray);
                 }
                 this.draggable = false;
                 this.addModule = false;
@@ -833,8 +1023,7 @@
                 this.clickIndex = index; // 保存点击的图层
                 this.clickChildIndex = childIndex; // 保存点击的子图层
                 // 点击的元素添加类名 rorateChildIcon是所有的图层子项, 需要运算
-                console.log(this.$refs[`rorateChildIcon${this.clickIndex}-${this.clickChildIndex}`], '===================================================================');
-                this.$refs[`rorateChildIcon${this.clickIndex}-${this.clickChildIndex}`][0].classList.add('border-style');
+                // this.$refs[`rorateChildIcon${this.clickIndex}-${this.clickChildIndex}`][0].classList.add('border-style');
             },
             // 拖拽工作事件
             getParentTag(dom, arg = 'default') {
@@ -843,12 +1032,9 @@
                 // 父级标签是否是body,是着停止返回集合,反之继续
                 if (dom.offsetParent !== null) {
                     if (arg == 'default') {
-                        console.log(arg);
                         this.dom1Top += dom.offsetTop * 1;
                         this.dom1Left += dom.offsetLeft * 1;
                     } else if (arg == 'dom2') {
-                        // console.log(arg);
-                        // console.log(dom);
                         this.dom2Top += dom.offsetTop * 1;
                         this.dom2Left += dom.offsetLeft * 1;
                     } else if (arg == 'div') {
@@ -860,21 +1046,19 @@
                 }
             },
             // 删除图层
-            delLayer() {
-                // 更新top， 因为子组件的left不会导致父组件传递的left更新
-                 this.updataDate()
-
-                // ------------------------------------------------------------------------------------------------
-                if (this.floorList[this.thisFloorIndex].unitList[this.clickIndex].infoList.lenght != 0) {
-                    this.floorList[this.thisFloorIndex].unitList[this.clickIndex].infoList.splice(this.clickChildIndex, 1);
-                } else {
-                    this.floorList[this.thisFloorIndex].unitList[this.clickIndex].splice(this.clickIndex, 1);
+            delLayer(id) {
+                let infoList = this.floorList[0].unitList[0].infoList
+                if (infoList.lenght != 0) {
+                    let infos = this.floorList[0].unitList[0].infoList
+                    let arrayIndex = this.getIndexFromId(infos, id)
+                    this.floorList[0].unitList[0].infoList[arrayIndex].isDeleted = true
                 }
-                console.log(this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList)
-                if (this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList != 0) {
-                    this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.splice(this.clickChildIndex, 1);
+                if (this.floorList[0].componentList[0].itemList != 0) {
+                    let index = this.getIndexFromId(this.floorList[0].componentList[0].itemList, id)
+                    // this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.splice(this.selectedIndex, 1);
+                    this.floorList[0].componentList[0].itemList[index].isDeleted = true
                 } else {
-                    console.log(this.floorList[this.thisFloorIndex].componentList)
+                    // console.log(this.floorList[this.thisFloorIndex].componentList)
                     // this.floorList[this.thisFloorIndex].componentList[this.clickIndex].splice(this.clickIndex, 1);
                 }
 
@@ -891,97 +1075,13 @@
                     unitId: '' + this.floorList[this.thisFloorIndex].unitList.length, // 添加id
                     itemList: [...this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList] // 添加组件名称
                 });
-                console.log(this.floorList[this.thisFloorIndex].componentList);
+                // console.log(this.floorList[this.thisFloorIndex].componentList);
             },
             // 选中子图层
             changeChildIndex(indexChild, index) {
                 this.clickChildIndex = indexChild;
                 this.clickIndex = index;
-                this.childOpenIcon([`rorateChildIcon${this.clickIndex}-${this.clickChildIndex}`][0], indexChild, index);
-            },
-            // 选中功能
-            createDom(e) {
-                // 如果有选择框, 鼠标按下操作板就直接让他消失
-                // 才操作板里鼠标按下, 没有选择框就创建一个
-                if (this.div) {
-                    this.$refs.workPlace[this.thisFloorIndex].removeChild(this.div);
-                    this.div = null;
-                    this.changeComponentStyle('clear');
-                } else {
-                    this.dom1Left = 0;
-                    this.dom1Top = 0;
-                    this.getParentTag(this.$refs.workPlace[this.thisFloorIndex]);
-                    this.div = document.createElement('div');
-                    this.div.className = 'createDom';
-
-                    // 记录div的初始位置值用于限制范围 和 设置它的创始初始位置
-                    this.div.style.left = e.clientX - this.dom1Left + 'px';
-                    this.div.style.top = e.clientY - this.dom1Top + 'px';
-                    this.$refs.workPlace[this.thisFloorIndex].appendChild(this.div);
-                    this.isMove = true;
-                    this.startLeft = e.clientX;
-                    this.startLeftCopy = e.clientX;
-                    this.startTop = e.clientY;
-                    this.startTopCopy = e.clientY;
-                }
-            },
-            selectOtherDom(e) {
-                // 2020-06-13 linwenjun
-                if(this.div) {
-                    this.div.style.cursor = 'default';
-                }
-                // 重置操作板到body的距离
-                this.dom1Left = 0;
-                this.dom1Top = 0;
-                this.isMove = false;
-
-                // div鼠标弹起
-                this.isDivMove = false;
-                this.divOffsetLeft = 0;
-                this.divOffsetTop = 0;
-
-                // 框选移动(3): 更新: 记录每一个module移动后的left/top
-                for (let i = 0; i < this.selectModuleList.length; i++) {
-                    this.selectModuleLeftTopList[i] = {
-                        left: this.selectModuleList[i].style.left.replace('px', '') * 1,
-                        top: this.selectModuleList[i].style.top.replace('px', '') * 1
-                    };
-                }
-
-                // 没有选择移出选框
-                if (this.selectModuleList.length == 0 && this.div) {
-                    this.$refs.workPlace[this.thisFloorIndex].removeChild(this.div);
-                    this.div = null;
-                }
-            },
-            moveDom(e) {
-                // 鼠标没按下就不移动
-                if (!this.isMove) return;
-                let top = this.div.style.top.replace('px', '');
-                let left = this.div.style.left.replace('px', '');
-                if (this.startLeftCopy - e.clientX > 0) {
-                    this.div.style.left = e.clientX - this.dom1Left + 'px';
-                    this.div.style.width = this.startLeftCopy - e.clientX + 'px';
-                    this.endRight = this.startLeftCopy;
-                    this.startLeft = e.clientX;
-                } else {
-                    this.div.style.width = e.clientX - this.dom1Left - left + 'px';
-                    this.endRight = e.clientX;
-                }
-
-                if (this.startTopCopy - e.clientY > 0) {
-                    this.div.style.top = e.clientY - this.dom1Top + 'px';
-                    this.div.style.height = this.startTopCopy - e.clientY + 'px';
-                    this.endBottom = this.startTopCopy;
-                    this.startTop = e.clientY;
-                } else {
-                    this.div.style.height = e.clientY - this.dom1Top - top + 'px';
-                    this.endBottom = e.clientY;
-                }
-                console.log(this.startLeftCopy, this.startTopCopy);
-                // this.endRight = e.clientX;
-                // this.endBottom = e.clientY;
-                this.changeComponentStyle();
+                // this.childOpenIcon([`rorateChildIcon${this.clickIndex}-${this.clickChildIndex}`][0], indexChild, index);
             },
             // 修改选中组件的样式
             changeComponentStyle(status = 'defalut') {
@@ -992,12 +1092,12 @@
                     for (let j = 0; j < allDom.length; j++) {
                         this.dom2Top = 0;
                         this.dom2Left = 0;
-                        console.log(allDom[j])
+                        // console.log(allDom[j])
                         this.getParentTag(allDom[j], 'dom2');
-                        console.log(this.dom2Top > this.startTop &&
-                            this.dom2Left > this.startLeft &&
-                            this.endRight > this.dom2Left + allDom[j].offsetWidth &&
-                            this.endBottom > this.dom2Top + allDom[j].offsetHeight)
+                        // console.log(this.dom2Top > this.startTop &&
+                        //     this.dom2Left > this.startLeft &&
+                        //     this.endRight > this.dom2Left + allDom[j].offsetWidth &&
+                        //     this.endBottom > this.dom2Top + allDom[j].offsetHeight)
                         if (
                             this.dom2Top > this.startTop &&
                             this.dom2Left > this.startLeft &&
@@ -1020,7 +1120,7 @@
             // 获取当前的组件 => 返回所有元素
             getAllDom() {
                 let allComponents = this.$refs.allComponents.slice(this.thisFloorIndex);
-                console.log(allComponents);
+                // console.log(allComponents);
                 for (let i = 0; i < allComponents.length; i++) {
                     if (allComponents[i].style.display !== 'none') {
                         if (allComponents[i].children && allComponents[i].children.lenght != 0) {
@@ -1060,6 +1160,330 @@
                     this.selectModuleList[i].style.top = this.selectModuleLeftTopList[i].top + top + 'px';
                 }
             },
+            // 校准轨道
+            correctTracks(trackList, array) {
+                let width = 0
+                if(array.length > 0) {
+                    let arr = this.recursionList(array)
+                    width = Number(arr[arr.length - 1].style.left.replace('px', '')) - Number(arr[0].style.left.replace('px', ''))
+                }
+                let tracks = this.recursionList(trackList)
+                let allWidth = 0
+                for (let i = 0; i < tracks.length; i++) {
+                    let w = this.$vwToPx(Number(tracks[i].style.width.replace('vw', '')))
+                    allWidth = allWidth + w
+                }
+                // if(allWidth >= width) {
+                //     for (let i = 0; i < tracks.length - 1; i++) {
+                //         let left = Number(tracks[i].style.left.replace('px', ''))
+                //         let width = this.$vwToPx(Number(tracks[i].style.width.replace('vw', '')))
+                //         tracks[i + 1].style.left = (left + width - 14) + 'px'
+                //     }
+                // } else {
+                //     if(tracks.length > 1) {
+                //         tracks[tracks.length - 1].style.width = width - allWidth + 'px'
+                //     } else if(length == 1){
+                //         tracks[0].style.width = width + 'px'
+                //     }
+                // }
+                if (tracks.length > 0) {
+                    tracks[0].style.left = this.$vwToPx(17.25) + 'px'
+                }
+                for (let i = 0; i < tracks.length - 1; i++) {
+                    let left = Number(tracks[i].style.left.replace('px', ''))
+                    let width = this.$vwToPx(Number(tracks[i].style.width.replace('vw', '')))
+                    tracks[i + 1].style.left = (left + width - 30) + 'px'
+                }
+            },
+            // 校准所有元素高度
+            correctAllTop(arr, top) {
+                for (let i = 0; i < arr.length; i++) {
+                    let a = arr[i]
+                    let name = a.dataset.name
+                    if(name === '轨道' || name === '货架' || name === '工作站' || name === 'PST通道' || name === '拣货通道') {
+                        a.style.top = top + 'px'
+                    } else if(name === '堆塔') {
+                        a.style.top = top + 20 + 'px'
+                    }
+                }
+            },
+            //  校准所有元素的左边
+            correctAllLeft(array, trackList) {
+                let tracks = this.recursionList(trackList)
+                let arrs = this.recursionList(array)
+                if(arrs.length > 0) {
+                    arrs[0].style.left = tracks[0].style.left  || '50px'
+                    for (let i = 0; i < arrs.length - 1; i++) {
+                        let arr = arrs[i]
+                        let left = Number(arr.style.left.replace('px', ''))
+                        let width = Number(arr.style.width.replace('px', ''))
+                        let name = arr.dataset.name
+                        arrs[i + 1].style.left = left + width + 8.8 + 'px'
+                    }
+                }
+            },
+            // 校准所有 psb
+            correctAllPsb(array, wall) {
+                if(array.length > 0 && wall !== undefined) {
+                    let left = Number(wall.style.left.replace('px', '')) || 50
+                    let top = Number(wall.style.top.replace('px', '')) + 20 || 50
+                    let width = Number(wall.style.width.replace('px', '')) || 50
+                    if(array.length > 0) {
+                        let psbWidth = this.$vwToPx(Number(array[0].style.width.replace('vw', ''))) || 38
+                        let psbLeft = (width - psbWidth) / 2 || 20
+                        for (let i = 0; i < array.length; i++) {
+                            let arr = array[i]
+                            arr.style.left = left + psbLeft + 'px'
+                            arr.style.top = top + i * 80 + 'px'
+                            arr.style.zIndex = 99
+                        }
+                    }
+                }
+
+            },
+            // 校准所有 box
+            correctAllBox(array, shelves) {
+                if(array.length > 0 && shelves.length > 0) {
+                    let width = 46
+                    // let boxWidth = this.$vwToPx(Number(array[0].style.width.replace('vw', ''))) || 26
+                    // let boxLeft = (width - boxWidth) / 2
+                    // for (let i = 0; i < array.length; i++) {
+                    //     let left = Number(shelves[i].style.left.replace('px', '')) || 50
+                    //     let arr = array[i]
+                    //     // if(i > shelves.length) {
+                    //     //     arr.style.left = left + boxLeft + (i - shelves.length) * boxWidth + 'px'
+                    //     // }
+                    //     arr.style.left = left + boxLeft + 'px'
+                    // }
+                }
+            },
+            // 获取 station array
+            getStationArray(arrs) {
+                let result = []
+                let rs = []
+                let indexs = []
+                for (let i = 0; i < arrs.length; i++) {
+                    let a = arrs[i]
+                    let name = a.dataset.name
+                    if (name === '工作站') {
+                        result.push(i + 1)
+                    }
+                }
+                for (let j = result[0] - 1; j >= 0; j--) {
+                    let arr = arrs[j]
+                    let name = arr.dataset.name
+                    let index = Number(arr.dataset.index)
+                    if (name === '拣货通道') {
+                        rs.push(j)
+                        indexs.push(index)
+                        break
+                    }
+                }
+                for (let i = 0; i < result.length; i++) {
+                    let last = result[i]
+                    let next = result[i + 1]
+
+                    for (let j = last; j < next; j++) {
+                        let arr = arrs[j]
+                        let name = arr.dataset.name
+                        let index = Number(arr.dataset.index)
+                        if (name === '拣货通道') {
+                            rs.push(j)
+                            indexs.push(index)
+                            break
+                        }
+                    }
+                }
+                // for (let j = result[result.length - 1]; j < arrs.length; j++) {
+                //     let arr = arrs[j]
+                //     let name = arr.dataset.name
+                //     let index = Number(arr.dataset.index)
+                //     if(name === '拣货通道') {
+                //         rs.push(j)
+                //         indexs.push(index)
+                //         break
+                //     }
+                // }
+                return {
+                    pickWays: rs,
+                    pickIndexs: indexs,
+                }
+            },
+            // 校准分拣员和推车
+            correctPeopleAndCar(arr, peopleArr, carArr) {
+                let arrs = this.recursionList(arr)
+                // let peoples = this.recursionList(peopleArr)
+                let peoples = peopleArr
+                let cars = carArr
+                // let cars = this.recursionList(carArr)
+                this.peoplePos = this.getStationArray(arrs)
+                console.log('this peoples pos', this.peoplePos)
+                // this.peoplePos.pickWays.pop()
+                let result = this.peoplePos.pickWays
+                // 校准 people
+                if(arrs.length > 0 && peoples.length > 0) {
+                    for (let j = 0; j < peoples.length; j++) {
+                        let re = result[j]
+                        if(re !== undefined) {
+                            let left = Number(arrs[re].style.left.replace('px', ''))
+                            let top = Number(arrs[re].style.top.replace('px', ''))
+                            peoples[j].style.left = left + 14 + 'px'
+                            peoples[j].style.top = top + 230 + 'px'
+                            peoples[j].style.zIndex = this.getZIndex + 1
+                            this.setZIndex(this.getZIndex + 1)
+                        }
+                    }
+                }
+                // 校准 car
+                if(arrs.length > 0 && cars.length > 0) {
+                    console.log('result', result)
+                    for (let j = 0; j < cars.length; j++) {
+                        let re = result[j]
+                        if(re !== undefined) {
+                            let left = Number(arrs[re].style.left.replace('px', ''))
+                            let top = Number(arrs[re].style.top.replace('px', ''))
+                            cars[j].style.left = left + 14 + 'px'
+                            cars[j].style.top = top + 260 + 'px'
+                            cars[j].style.zIndex = this.getZIndex + 1
+                            this.setZIndex(this.getZIndex + 1)
+                        }
+                    }
+                }
+            },
+            // 获取模型数据
+            getModelArray() {
+                let modelDoms = this.recursionList(Array.from(this.getAllDom()))
+                let result = []
+                let psbs = []
+                let peoples = []
+                let peopleDoms = []
+                let cars = []
+                let carDoms = []
+                let k = 0
+                let x = 1
+                for (let i = 0; i < modelDoms.length; i++) {
+                    let model = modelDoms[i]
+                    let name = model.dataset.name
+                    let num = Number(model.dataset.num)
+                    if(model.dataset.num == undefined) {
+                        num = 1
+                    }
+                    // console.log('num', num, model)
+                    let index = Number(model.dataset.index)
+                    let deleted = Boolean(model.dataset.deleted)
+                    console.log('deleted', deleted)
+                    if(!deleted) {
+                        if(name === '工作站') {
+                            result.push({
+                                name: 'station',
+                                num: 1,
+                                space: 60,
+                                x: x,
+                                index: index,
+                            })
+                            x = x + 1
+                        } else if(name === '货架') {
+                            result.push({
+                                name: 'shelve',
+                                num: num,
+                                space: Number(model.dataset.space) - 46 || 0,
+                                x: x,
+                                index: index,
+                            })
+                            x = x + num
+                        } else if(name === 'PST通道') {
+                            result.push({
+                                name: 'pstWay',
+                                num: num,
+                                space: Number(model.dataset.space) - 46 || 0,
+                                x: x,
+                                index: index,
+                            })
+                            x = x + num
+                        } else if(name === '拣货通道') {
+                            result.push({
+                                name: 'pickWay',
+                                num: num,
+                                space: Number(model.dataset.space) - 46 || 0,
+                                x: x,
+                                index: index,
+                            })
+                            x = x + num
+                        } else if(name === 'PSB') {
+                            psbs.push({
+                                name: 'psb',
+                                z: k,
+                                index: index,
+                            })
+                            k += 1
+                        } else if(name === '分拣员') {
+                            peopleDoms.push({
+                                name: 'people',
+                                x: x,
+                                index: index,
+                            })
+                        } else if(name === '推车') {
+                            carDoms.push({
+                                name: 'car',
+                                x: x,
+                                index: index,
+                            })
+                        }
+                    }
+                }
+
+                let people_len = 0
+                if(peopleDoms.length >= carDoms.length) {
+                    people_len = peopleDoms.length
+                } else {
+                    people_len = carDoms.length
+                }
+                for (let i = 0; i < result.length; i++) {
+                    let re = result[i]
+                    let index = re.index
+                    for (let j = 0; j < people_len; j++) {
+                        let pickIndex = this.peoplePos.pickIndexs[j]
+                        let num = re.num
+                        let value = re.x
+
+                        if(index == pickIndex) {
+                            peoples.push({
+                                name: 'people',
+                                x: value,
+                                num: num,
+                            })
+                        }
+                    }
+                }
+                return {
+                    index: Number(this.$route.query.index),
+                    shelve: result,
+                    psb: psbs,
+                    peoples: peoples,
+                }
+            },
+            // 冒泡排序 排序 people car
+            sortArray(sorterList) {
+                let result = []
+                for (let i = 0; i < sorterList.length - 1; i++) {
+                    for (let j = 0; j < sorterList.length - i - 1; j++) {
+                        let last = sorterList[j]
+                        let next = sorterList[j + 1]
+                        let lastIndex = last.index
+                        let nextIndex = next.index
+                        if(lastIndex > nextIndex) {
+                            let temp = sorterList[j]
+                            sorterList[j] = sorterList[j + 1]
+                            sorterList[j + 1] = temp
+                        }
+                    }
+                }
+                for (let i = 0; i < sorterList.length; i++) {
+                    let sort = sorterList[i].element
+                    result.push(sort)
+                }
+                return result
+            },
             // 校准
             /*
                 冒泡对比两个元素的left   小 -> 大
@@ -1077,7 +1501,6 @@
                 }
                 // 冒泡 ： 从左到右排序
                 let arr = this.recursionList(Array.from(this.getAllDom()))
-
                 // 播种墙标志
                 let isSeedingWall = false, firstSeedingWall, seedingWallList = [];
                 // 轨道标志
@@ -1091,218 +1514,62 @@
                 let isSorter = false, sorterList=[]
                 // 推车
                 let isGardenCart = false, gardenCartList=[]
+                let stationWays = []
                 arr.forEach((item, index) => {
                      // 查找播种墙是否存在, 只获取第一个
-                    if(arr[index].dataset['name'] == '播种墙') {
+                    if(arr[index].dataset['name'] == '工作站') {
                         isSeedingWall = true;
                         seedingWallList.push(arr[index])
                         firstSeedingWall = seedingWallList[0]
-                    }
-                    // 查找轨道是否存在， 获取所有
-                    if(arr[index].dataset['name'] == '轨道') {
+                    } else if(arr[index].dataset['name'] == '轨道') {
                         isTrack = true;
                         TrackList.push(arr[index])
-                        console.log('轨道已存在', TrackList)
-                    }
-                    if(arr[index].dataset['name'] == 'PSB') {
+                        // console.log('轨道已存在', TrackList)
+                    } else if(arr[index].dataset['name'] == 'PSB') {
                         isPSB = true;
                         PSBList.push(arr[index])
-                        console.log('psb已存在', PSBList)
-                    }
-                    // 货架
-                    if(arr[index].dataset['name'] == '货架') {
+                        // console.log('psb已存在', PSBList)
+                    } else if(arr[index].dataset['name'] == '货架') {
                         isGoodsShelves = true;
                         goodsShelvesList.push(arr[index])
-                    }
-                    // 堆塔
-                    if(arr[index].dataset['name'] == '堆塔') {
-                        console.log('堆塔存在')
+                    } else if(arr[index].dataset['name'] == '堆塔') {
                         isHeapedTower = true;
                         heapedTowerList.push(arr[index])
-                    }
-                    // 分拣员
-                    if(arr[index].dataset['name'] == '分拣员') {
+                    } else if(arr[index].dataset['name'] == '分拣员') {
                         isSorter = true;
-                        sorterList.push(arr[index])
-                    }
-                    // 推车
-                    if(arr[index].dataset['name'] == '推车') {
+                        sorterList.push({
+                            element: arr[index],
+                            index: Number(arr[index].dataset.index)
+                        })
+                    } else if(arr[index].dataset['name'] == '推车') {
                         isGardenCart = true
-                        gardenCartList.push(arr[index])
+                        gardenCartList.push({
+                            element: arr[index],
+                            index: Number(arr[index].dataset.index)
+                        })
+                    }
+                    let name = arr[index].dataset['name']
+                    if(name === '货架' || name === '工作站' || name === 'PST通道' || name === '拣货通道') {
+                        stationWays.push(arr[index])
                     }
                 })
-
-                for (let i = 0; i < arr.length; i++) {
-                    if(arr[i].className != 'toolOther') {
-                        arr[i].style.top = this.vhVwToPx('vh', '12vh') + 'px'
-                    }
-                    for (let j = 0; j < arr.length - 1; j++) {
-                        // 修改播种墙的left
-                        if(arr[i].dataset['name'] == '轨道' && isSeedingWall == true) {
-                            arr[i].style.left = firstSeedingWall.style.left
-                            isSeedingWall = 'ok'
-                        }
-                        // 对所有相同模型进行排列(left)
-                        if ((arr[j].className == arr[j + 1].className)) {
-                            console.log(arr[j].className)
-                            // 第一个比第二个left大
-                            let offsetWidth, offsetHeight
-                            if(arr[j].children.length != 0) {
-                                offsetWidth = arr[j].children[0].offsetWidth
-                                } else {
-                                offsetWidth = arr[j].offsetWidth
-                            }
-                            // 高度是否大于本身高度 并且两个盒子left重叠(除了不需要处理: 推车堆塔分拣员工作站)
-                            if(this.pxToNum(arr[j].style.left) >= this.pxToNum(arr[j + 1].style.left) && arr[j].dataset['name'].indexOf('推车堆塔分拣员工作站') == -1) {
-                                // 它们之间的left小于offsetWidth, 调整距离; 否则不做处理
-                                if(this.pxToNum(arr[j].style.left) - this.pxToNum(arr[j + 1].style.left) < offsetWidth) {
-                                    arr[j + 1].style.left = this.pxToNum(arr[j].style.left) + offsetWidth + 'px'
-                                }
-
-                            } else if(this.pxToNum(arr[j].style.left) <= this.pxToNum(arr[j + 1].style.left) && arr[j].dataset['name'].indexOf('推车堆塔分拣员工作站') == -1) {
-                                if(this.pxToNum(arr[j + 1].style.left) - this.pxToNum(arr[j].style.left) < offsetWidth) {
-                                    arr[j + 1].style.left = this.pxToNum(arr[j].style.left) + offsetWidth + 'px'
-                                }
-                                console.log(this.pxToNum(arr[j].style.left), this.pxToNum(arr[j + 1].style.left))
-                            }
-
-                        } else {
-                            console.log('class不一样')
-                        }
-                    }
-                }
-                // psb 和 播种墙
-                if(isSeedingWall&&isPSB) {
-                    PSBList.forEach((item, index) => {
-                        item.style.top = this.vhVwToPx('vh', '2vh') + seedingWallList[0].offsetHeight/6*index + this.vhVwToPx('vh', '12vh') + 'px'
-                        item.style.left = this.pxToNum(seedingWallList[0].style.left) + this.vhVwToPx('vw', '0.4vw') + this.vhVwToPx('vw', '1.5625vw')*Math.floor(index/6) + 'px'
-                    })
-                }
-
-                // 推塔 和 货架
-                if(isHeapedTower && isGoodsShelves) {
-
-                    heapedTowerList.forEach((item, index) => {
-                        item.style.top =  this.vhVwToPx('vh', '2.13vh') + this.vhVwToPx('vh', '12vh') + 'px'
-                        item.style.left = this.pxToNum(goodsShelvesList[index].style.left) + this.vhVwToPx('vw', '0.52vw') + 'px'
-                    })
-                }
-                let maxObj = {
-                    MaxRight: 0,
-                    MaxBottom: 0
-                }
-                // 获取右/下边的最大值来调整轨道
-                let mewArr = this.recursionList(Array.from(this.getAllDom()))
-
-                mewArr.forEach((item, index) => {
-                    if(item.dataset['name'] == '堆塔') {
-                        let left = this.pxToNum(item.style.left)+this.pxToNum(item.lastElementChild.style.left)+item.lastElementChild.offsetWidth
-                        let top = this.pxToNum(item.style.top)+this.pxToNum(item.lastElementChild.style.top)-this.pxToNum(item.children[0].style.top)+item.lastElementChild.offsetHeight
-                        if(left>maxObj.MaxRight) {
-                            maxObj.MaxRight = left
-                        }
-                        if(top>maxObj.MaxBottom) {
-                            maxObj.MaxBottom = top
-                        }
-                        console.log('堆塔')
-                        console.log(this.pxToNum(item.style.left), (item.children.length/6-1)*6, item.children[0].offsetWidth)
-                        // console.log((this.pxToNum(item.children[1].style.top)-this.pxToNum(item.children[0].style.top))*5+item.children[0].offsetHeight)
-
-                    }
-                    else if(item.dataset['name'] == '货架') {
-                        let left = this.pxToNum(item.style.left)+this.pxToNum(item.lastElementChild.style.left)+ item.lastElementChild.offsetWidth
-                        let top = this.pxToNum(item.style.top)+this.pxToNum(item.lastElementChild.style.top)+ item.lastElementChild.offsetHeight
-                        if(left>maxObj.MaxRight) {
-                            maxObj.MaxRight = left
-                        }
-                        if(top>maxObj.MaxBottom) {
-                            maxObj.MaxBottom = top
-                        }
-                    }
-                    else {
-                        if(item.dataset['name'] != '轨道') {
-
-                            let left = this.pxToNum(item.style.left)+item.offsetWidth
-                            let top = this.pxToNum(item.style.top)+item.offsetHeight
-                            if(left>maxObj.MaxRight) {
-                                maxObj.MaxRight = this.pxToNum(item.style.left)+item.offsetWidth
-                            }
-                            if(top>maxObj.MaxBottom) {
-                                maxObj.MaxBottom = this.pxToNum(item.style.top)+item.offsetHeight
-                            }
-
-                        }
-                    }
-
-                    // 保存调整后的数据
-                    if(arr[index].dataset['name'] == '播种墙') {
-                        data.seedingWallList.push(
-                            {
-                                id: data.seedingWallList.length+1,
-                                name: 'seedingWall-'+ (data.seedingWallList.length+1),
-                                left: arr[index].style.left,
-                                top: arr[index].style.top,
-                                offsetWidth: arr[index].offsetWidth,
-                                offsetHeight: arr[index].offsetHeight,
-                                dom: arr[index]
-                            }
-                        )
-                    }
-
-                    // 货架
-                    if(arr[index].dataset['name'] == '货架') {
-                        data.goodsShelvesList.push(
-                            {
-                                id: data.goodsShelvesList.length+1,
-                                name: 'goodsShelves-' + (data.goodsShelvesList.length+1),
-                                left: arr[index].style.left,
-                                top: arr[index].style.top,
-                                offsetWidth: this.pxToNum(arr[index].lastElementChild.style.left)+arr[index].lastElementChild.offsetWidth,
-                                offsetHeight: this.pxToNum(arr[index].lastElementChild.style.top)+arr[index].lastElementChild.offsetHeight,
-                                dom: arr[index]
-                            }
-                        )
-                    }
-
-                    // 堆塔
-                    if(arr[index].dataset['name'] == '堆塔') {
-                        data.heapedTowerList.push(
-                            {
-                                id: data.heapedTowerList.length+1,
-                                name: 'heapedTower-' + (data.heapedTowerList.length+1),
-                                left: arr[index].style.left,
-                                top: arr[index].style.top,
-                                offsetWidth: this.pxToNum(arr[index].lastElementChild.style.left)+arr[index].lastElementChild.offsetWidth,
-                                offsetHeight: this.pxToNum(arr[index].lastElementChild.style.top)+arr[index].lastElementChild.offsetHeight,
-                                dom: arr[index]
-                            }
-                        )
-                    }
-
-                    // 拣货通道 2020-6-12 lwj
-                    if('拣货通道 pst通道 播种墙'.indexOf(arr[index].dataset['name']) != -1) {
-                        let name = ''
-                        if(arr[index].dataset['name'] == '拣货通道') {
-                            name = 'pickingChannel'
-                        } else if(arr[index].dataset['name'] == 'pst通道') {
-                            name = 'PSBPassageway'
-                        } else {
-                            name = 'seedingWall'
-                        }
-                        data.screenList.push(
-                            {
-                                id: data.screenList.length+1,
-                                name: `${name}-` + (data.screenList.length+1),
-                                left: arr[index].style.left,
-                                top: arr[index].style.top,
-                                offsetWidth: this.pxToNum(arr[index].lastElementChild.style.left)+arr[index].lastElementChild.offsetWidth,
-                                offsetHeight: this.pxToNum(arr[index].lastElementChild.style.top)+arr[index].lastElementChild.offsetHeight,
-                                dom: arr[index]
-                            }
-                        )
-                    }
-
-                })
+                this.stations = stationWays
+                // 排序 people car
+                let peoples = this.sortArray(sorterList)
+                let cars = this.sortArray(gardenCartList)
+                console.log('arr rrrrrrr', peoples, cars)
+                // 校准轨道
+                this.correctTracks(TrackList, arr)
+                // 校准高度
+                this.correctAllTop(arr, 78)
+                // 校准左边的位置
+                this.correctAllLeft(stationWays, TrackList)
+                // 校准psb
+                this.correctAllPsb(PSBList, firstSeedingWall)
+                // 校准 box
+                this.correctAllBox(heapedTowerList, goodsShelvesList)
+                // 校准 people and car
+                this.correctPeopleAndCar(stationWays, peoples, cars)
 
                 this.updataDate()
 
@@ -1311,22 +1578,6 @@
             pxToNum(px) {
                 let num = px.replace("px", "") * 1;
                 return num;
-            },
-            // vh/vw 转 px
-            vhVwToPx(type, str) {
-                let output
-                switch(type) {
-                    case 'vh':
-                        output = window.innerHeight / 100 * str.replace('vh', '')
-                        break;
-                    case 'vw':
-                       output = window.innerWidth / 100 * str.replace('vw', '')
-                       break;
-                }
-                if(isNaN(output)) {
-                    console.log('传递类型和传递的数值类型不同')
-                }
-                return output
             },
             recursionList(Arr) {
                 for (let i = 0; i < Arr.length; i++) {
@@ -1342,7 +1593,52 @@
                 return Arr
             },
             // 生成
-            generate() {
+            generate(msgBool=true) {
+                // 生成之前先校准
+                this.calibration()
+                // 生成3d模型需要的数组
+                // this.modelData.push(this.getModelArray())
+                // let index = Number(this.$route.query.index) - 1
+                this.modelData = this.getModelArray()
+                console.log('this model Data', this.modelData)
+                localStorage.setItem('modelData', JSON.stringify(this.modelData))
+                return this.modelData
+                // if(msgBool) {
+                //     this.$message({
+                //         showClose: true,
+                //         message: '生成成功',
+                //         type: 'success',
+                //     });
+                // }
+            },
+            getIndexFromId(array, selectedId) {
+                // console.log('selectedId', selectedId)
+                let index = -1
+                for (let i = 0; i < array.length; i++) {
+                    let re = array[i]
+                    if(re.id === selectedId) {
+                        index = i
+                    }
+                }
+                return index
+            },
+            // 删除模型
+            removeModel(id) {
+                let result = this.getModelOption
+                let index = this.getIndexFromId(result, id)
+                if (index !== -1) {
+                    // console.log('result', result, index)
+                    result[index].isDeleted = true
+                    // debugger
+                    this.setOptions(result)
+                    this.delLayer(id);
+                    this.updataDate()
+                }
+
+            },
+            deleteClickEvent(event) {
+                // this.addActive(event, 'operation');
+                this.removeModel(this.selectedId)
             },
             // 当前画布图层按键删除 监听 delete 和 退格键
             remove() {
@@ -1350,62 +1646,97 @@
                 window.addEventListener('keydown', function (event) {
                     let key = event.key;
                     if (key === 'Delete') {
-                        self.delLayer();
-                        let result = this.getModelOption
-                        result.splice(this.selectedIndex, 1)
-                        this.setOptions(result)
+                        self.removeModel(self.selectedId)
                     }
                 });
             },
             setNumOrSpace(num, space) {
+                // let option = this.getArrayFromUUID(this.getModelOption, this.selectedId)
                 let option = this.getModelOption[this.selectedIndex]
-                if(this.posNum == '') {
-                    if(option['num'] !== -1) {
+                if (num >= 100) {
+                    let width = this.width * (Number(num) + 10) / 100
+                    this.width = width
+                    this.$nextTick(function () {
+                        this.drawGrid(this.width, this.height, width / 30);
+                        this.drawRules(1000, this.width)
+                        this.floorList[0].width = this.width;
+                        this.floorList[0].height = this.height;
+                        this.floorList[0].num = this.width / 30;
+                        localStorage.setItem('floorList', JSON.stringify(this.floorList))
+                    })
+
+                }
+                if (this.posNum == '') {
+                    if (option['num'] !== -1) {
                         num = option.num
                     } else {
                         num = 1
                     }
                 }
-                if(this.posSpace == '') {
-                    if(option['space'] !== -1) {
+                if (this.posSpace == '') {
+                    if (option['space'] !== -1) {
                         space = option.space
                     } else {
                         space = 60
                     }
                 }
-                num = parseInt(num)
-                space = parseInt(space)
+                num = Number(num)
+                space = Number(space)
                 if(this.selectedElement.classList.contains('track-list')) {
                     this.setModelOptions({
-                        trackWidth: num * 37.6 + 'vw',
-                        trackNum: parseInt(num * 12),
+                        id: option.id,
+                        trackWidth: num * 2.8 + 'vw',
+                        trackNum: parseInt(num),
                         num: num,
                         index: this.selectedIndex,
                         space: space,
-                        name: 'track',
+                        name: '轨道',
+                        isDeleted: false,
                     })
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].trackWidth = num * 2.8 + 'vw'
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].trackNum = parseInt(num)
                 } else if(this.selectedElement.classList.contains('shelves')) {
                     this.setModelOptions({
+                        id: option.id,
                         shelvesNum: parseInt(num),
-                        shevlesSpace: space,
-                        name: 'shelves',
+                        shevlesSpace: parseInt(space),
+                        name: '货架',
                         num: num,
                         space: space,
                         index: this.selectedIndex,
+                        isDeleted: false,
                     })
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].shelvesNum = parseInt(num)
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].shevlesSpace = parseInt(space)
                 } else if(this.selectedElement.classList.contains('box')) {
                     this.setModelOptions({
-                        boxColumns: parseInt(this.posNum),
-                        boxSpace: space,
+                        id: option.id,
+                        boxColumns: parseInt(num),
+                        boxSpace: parseInt(space),
                         num: num,
                         space: space,
                         index: this.selectedIndex,
-                        name: 'box',
+                        name: '堆塔',
+                        isDeleted: false,
                     })
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].boxColumns = parseInt(num)
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].boxSpace = parseInt(space)
+                } else if(this.selectedElement.classList.contains('toolBZQ')) {
+                    this.setModelOptions({
+                        id: option.id,
+                        stationNum: parseInt(num),
+                        stationSpace: parseInt(space),
+                        name: '通道',
+                        num: num,
+                        space: space,
+                        index: this.selectedIndex,
+                        isDeleted: false,
+                    })
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].stationNum = parseInt(num)
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].stationSpace = parseInt(space)
                 }
             },
-            // 输入框失去焦点事件
-            inputBlurEvent(event) {
+            updateModelData(event) {
                 let name = event.target.name
                 if(name === 'left') {
                     if(this.posLeft !== '') {
@@ -1416,7 +1747,6 @@
                         this.selectedElement.style.top = `${this.posTop}px`
                     }
                 } else if(name === 'num') {
-                    this.log(this.selectedElement.classList)
                     if(this.posNum !== '') {
                         this.setNumOrSpace(this.posNum, this.posSpace)
                     }
@@ -1426,6 +1756,13 @@
                     }
                 }
                 this.updataDate()
+            },
+            enterKeyEvent(event) {
+                this.updateModelData(event)
+            },
+            // 输入框失去焦点事件
+            inputBlurEvent(event) {
+                this.updateModelData(event)
             },
             findElement(paths, className) {
                 for (let i = 0; i < paths.length; i++) {
@@ -1444,43 +1781,203 @@
             },
             // 全局鼠标按下事件
             editMouseEvent(event) {
-                this.log('event', event, event.target.closest('.psbContent'), event.path)
                 let bool = this.findElement(event.path, 'posContent')
-                this.log('bool', bool)
-                if(!bool) {
+                let hasTip = this.findElement(event.path, 'tip-main')
+                if (!hasTip) {
+                    this.tipShow = false
+                }
+                if (!bool) {
                     this.posContent.none = true
-                    this.$refs.posMain.blur()
-                    this.setAllValue()
-                    // let inputs = document.querySelectorAll('.classInput')
-                    // for (let i = 0; i < inputs.length; i++) {
-                    //     let input = inputs[i]
-                    //     input.blur()
-                    // }
+                    let inputs = document.querySelectorAll('.classInput')
+                    for (let i = 0; i < inputs.length; i++) {
+                        let input = inputs[i]
+                        input.blur()
+                    }
+                    // this.setAllValue()
                 }
             },
             updated() {
                 this.updataDate()
-                console.log(this.floorList)
             },
             updataDate() {
                 let arr2 = Array.from(this.getAllDom())
                 this.floorList[this.thisFloorIndex].componentList[this.clickIndex].itemList.forEach((item, index) => {
-                    item.left = this.pxToNum(arr2[index].style.left)
-                    item.top = this.pxToNum(arr2[index].style.top)
-                    item.num = this.posNum
-                    item.space = this.posSpace
+                    for (let i = 0; i < arr2.length; i++) {
+                        let arr = arr2[i]
+                        let id = arr.dataset.id
+                        if(id === item.id) {
+                            item.left = this.pxToNum(arr.style.left)
+                            item.top = this.pxToNum(arr.style.top)
+                        }
+                    }
                 })
-                localStorage.setItem('floorList',JSON.stringify(this.floorList))
-            }
+                localStorage.setItem('floorList', JSON.stringify(this.floorList))
+            },
+            handleScrollEvent(event) {
+                let editContent = this.$refs.editContent
+                this.scrollTop = editContent.scrollTop
+                this.scrollLeft = editContent.scrollLeft
+            },
+            setInputClass(bool) {
+                for (let i = 0; i < this.inputClass.length; i++) {
+                    let input = this.inputClass[i]
+                    input.inputActive = bool
+                }
+            },
+            // input 的 点击事件
+            posClickEvent(event) {
+                console.log('event', event.target.name)
+                let name = event.target.name
+                this.setInputClass(false)
+                if (name === 'left') {
+                    this.inputClass[0].inputActive = true
+                } else if (name === 'top') {
+                    this.inputClass[1].inputActive = true
+                } else if (name === 'num') {
+                    this.inputClass[2].inputActive = true
+                } else if (name === 'space') {
+                    this.inputClass[3].inputActive = true
+                }
+            },
+            // 完成 退出按钮点击事件
+            btnEvent(index) {
+                if (index == 0) {
+                    this.calibration()
+                    sessionStorage.setItem('isEdit', true)
+                    let modelData = this.generate()
+                    localStorage.setItem('modelData', JSON.stringify(modelData))
+                    this.$router.push({
+                        path: '/index/scene'
+                    })
+                    // this.tipShow = true
+                } else if (index == 1) {
+                    sessionStorage.setItem('isEdit', true)
+                    localStorage.removeItem('floorList')
+                    localStorage.removeItem('modelOptions')
+                    this.$router.push({
+                        path: '/index/scene',
+                    })
+                }
+            },
+            // 关闭弹窗点击事件
+            closeTip() {
+                this.tipShow = false
+            },
+            formatTime(str) {
+                let s = String(str);
+                if (s.length == 1) {
+                    s = '0' + s;
+                }
+                return s;
+            },
+            getDate(date) {
+                let year = date.getFullYear();
+                let mon = date.getMonth() + 1;
+                let day = date.getDate();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                return `${year}/${this.formatTime(mon)}/${this.formatTime(day)} ${this.formatTime(hour)}:${this.formatTime(min)}`;
+            },
+            // 是否立即生成 点击事件
+            tipBtnClickEvent(bool) {
+                this.tipShow = false
+                if (bool) {
+                    let modelData = this.generate()
+                    sessionStorage.setItem('enteredIndex', true)
+                    sessionStorage.setItem('fromEdit', true)
+                    sessionStorage.setItem('isEdit', true)
+                    let projectData = JSON.parse(sessionStorage.getItem('projectData'))
+                    let d = new Date();
+                    let time = this.getDate(d);
+                    console.log('projectData', projectData)
+                    let index = this.$route.query.index - 1
+                    projectData.sceneOption[index].stationNum = Number(this.stationNum)
+
+                    let data = {
+                        projectName: projectData.projectName,
+                        areaInfo: [{
+                            // 总面积的长宽
+                            value: {
+                                width: projectData.areaInfo[0].value.width,
+                                height: projectData.areaInfo[0].value.height,
+                            }
+                        }, {
+                            // 使用面积的长宽
+                            value: {
+                                width: projectData.areaInfo[0].value.width,
+                                height: projectData.areaInfo[0].value.height,
+                            }
+                        },],
+                        nowTime: time,
+                        sceneOption: projectData.sceneOption,
+                        whalehouseID: projectData.whalehouseID,
+                        requestUrl: projectData.requestUrl,
+                        modelData: modelData,
+                        machineInfo: [{
+                            value: projectData.machineInfo[0].value
+                        },
+                            {
+                                value: projectData.machineInfo[1].value
+                            },
+                            {
+                                value: projectData.machineInfo[2].value
+                            },
+                            {
+                                value: projectData.machineInfo[3].value
+                            },
+                        ],
+                    }
+                    localStorage.setItem('currentProjectData', JSON.stringify(data))
+                    // this.creatProjectData(data);
+                    // this.$router.push({
+                    //     path: '/preview'
+                    // })
+                    this.$router.push({
+                        path: '/index/scene'
+                    })
+                }
+            },
+            setModelBorder() {
+                for (let i = 0; i < this.floorList[0].unitList[0].infoList.length; i++) {
+                    // let info = this.$refs[`modelName${i}`]
+                    // if (info !== undefined) {
+                    //     info[0].style.border = ''
+                    // }
+                    let info = this.floorList[0].unitList[0].infoList[i]
+                    info.border = ''
+                }
+            },
+            // 显示 border 边框
+            showBorder(index) {
+                // let model = this.$refs[`modelName${index}`]
+                this.setModelBorder()
+                this.floorList[0].unitList[0].infoList[index].border = '0.05vw solid rgba(230, 162, 64, 1)'
+                // if (model !== undefined) {
+                //     model[0].style.border = '0.05vw solid rgba(230, 162, 64, 1)'
+                // }
+            },
+            // 点击图层中的名字
+            modelNameClickEvent(id, index) {
+                console.log('点击')
+                this.showBorder(index)
+            },
+            removeClickEvent(id, index) {
+                console.log('id', id, index)
+                this.removeModel(id)
+            },
+        },
+        beforeDestroy() {
+            // localStorage.removeItem('floorList')
+            // localStorage.removeItem('modelOptions')
         },
         watch: {
             // selectedElement:{
-                // handler(val, old) {
-                //     this.log('val ((((((((((', val, old)
-                //     if(val === null) {
-                //         this.posContent.none = true
-                //     }
-                // }
+            // handler(val, old) {
+            //     this.log('val ((((((((((', val, old)
+            //     if(val === null) {
+            //         this.posContent.none = true
+            //     }
+            // }
             // }
         }
     };
@@ -1491,41 +1988,38 @@
         width: 100%;
         display: flex;
 
-        .sidebar {
-            width: 2.6vw;
-            height: 93.1vh;
-            background-color: #333333;
-            position: relative;
+        /*滚动条整体样式*/
+        ::-webkit-scrollbar {
+            width: 14px !important;
+            height: 14px !important;
+            background: #ffffff !important;
+            cursor: pointer !important;
+        }
 
-            .backBtn {
-                height: 3vh;
-                width: 1.7vw;
-                position: absolute;
-                top: 0.5vw;
-                left: 50%;
-                transform: translateX(-50%);
-                background: url('../../assets/scene/backBtn@2.png');
-                background-size: 100% 100%;
-            }
+        ::-webkit-scrollbar-thumb {
+            /*滚动条里面小方块*/
+            /*border-radius: 14px !important;*/
+            background: #414141 !important;
+            cursor: pointer !important;
+        }
 
-            .help {
-                height: 3vh;
-                width: 1.7vw;
-                position: absolute;
-                bottom: 0.5vw;
-                left: 50%;
-                transform: translateX(-50%);
-                background: url('../../assets/scene/help@2.png');
-                background-size: 100% 100%;
-            }
+        ::-webkit-scrollbar-track {
+            /*滚动条里面轨道*/
+            border-radius: 0 !important;
+            background-color: #262626;
+            cursor: pointer !important;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background-color: #262626;
         }
 
         // 模型库
         .modelBase {
             .modelBaseTitle {
-                width: 13.5vw;
+                width: 14.58vw;
                 height: 3.7vh;
-                background-color: #2f2f2f;
+                background-color: rgba(74, 76, 82, 1);
                 display: flex;
                 align-items: center;
 
@@ -1541,7 +2035,7 @@
                     width: 2.9vw;
                     height: 0.9vw;
                     font-family: SourceHanSansCN-Regular;
-                    font-size: 0.9vw;
+                    font-size: 0.94vw;
                     font-weight: normal;
                     font-stretch: normal;
                     line-height: 0.9vw;
@@ -1551,12 +2045,13 @@
             }
 
             .modelBaseContent {
-                width: 13.5vw;
+                width: 14.58vw;
                 height: calc(93.1vh - 3.7vh);
                 background-color: #262626;
                 display: flex;
                 flex-wrap: wrap;
                 align-content: flex-start;
+                padding-left: 0.75vw;
 
                 .modelBox {
                     display: flex;
@@ -1570,7 +2065,7 @@
                         margin: 0.5vw;
                         /*color: #ffffff;*/
                         /*background-color: #2f2f2f;*/
-                        /*cursor: pointer;*/
+                        cursor: pointer;
                     }
 
                     .modelTitle {
@@ -1583,16 +2078,18 @@
         // 楼层
         .floor {
             height: 93.1vh;
-            width: calc(51.9vw + 15.4vw);
-            background-color: #333333;
+            width: 72.05vw;
+            margin-left: 0.2vw;
+            background-color: black;
 
             .floorTitle {
                 height: 3.7vh;
-                width: calc(51.9vw + 15.4vw);
+                width: 72.05vw;
                 display: flex;
 
+
                 .floorTitleLeft {
-                    width: 51.9vw;
+                    width: 72.25vw;
                     height: 3.7vh;
                     background-color: #333333;
                     display: flex;
@@ -1679,41 +2176,22 @@
             }
 
             .edit-content {
-                width: 67.3vw;
-                height: 89.4vh;
+                width: 72.05vw;
+                height: 92.73vh;
                 overflow: scroll;
                 /*overflow-y: hidden;*/
                 background: #101012;
+
+                .border {
+                    position: absolute;
+                    border: 0.05vw solid rgba(255, 172, 41, 1);
+                }
             }
 
             .class-workPlace {
                 position: absolute;
                 z-index: 0;
             }
-
-            /*滚动条整体样式*/
-            ::-webkit-scrollbar {
-                width: 8px !important;
-                height: 8px !important;
-                background: #ffffff !important;
-                cursor: pointer !important;
-            }
-
-            ::-webkit-scrollbar-thumb {
-                /*滚动条里面小方块*/
-                border-radius: 8px !important;
-                background: #414141 !important;
-                cursor: pointer !important;
-                border-radius: 100px;
-            }
-
-            ::-webkit-scrollbar-track {
-                /*滚动条里面轨道*/
-                border-radius: 0 !important;
-                background-color: #000000;
-                cursor: pointer !important;
-            }
-
             .floorContent {
                 height: calc(93.1vh - 3.7vh);
                 width: calc(51.9vw + 15.4vw);
@@ -1723,91 +2201,92 @@
                 position: relative;
 
                 .operationBorad {
-                    width: 21.9vw; // 67.3 / 2 = 33.65   21.9 / 2 = 10.95
-                    height: 5vh;
+                    width: 6.04vw;
+                    height: 1.56vw;
                     position: fixed;
-                    left: 37vw;
-                    bottom: 6.5vh;
-                    display: flex;
-                    justify-content: space-between;
+                    left: 46.98vw;
+                    bottom: 6.94vh;
+                    background: rgba(255, 172, 41, 1);
+                    text-align: center;
 
-                    .operationBoradLeft {
-                        width: calc(21.9vw - 12.9vw);
-                        height: 5vh;
-                        background-color: #ffac29;
-                        display: flex;
-                        justify-content: space-around;
-                        align-items: center;
-                        background: url('../../assets/scene/operationBoradBorder@2.png');
-                        background-size: 100% 100%;
-                        position: relative;
+                    div {
+                        line-height: 1.56vw;
+
+                        img {
+                            width: 0.78vw;
+                            height: 0.78vw;
+                            vertical-align: sub;
+                        }
+
+                        span {
+                            margin-left: 0.57vw;
+                            color: #272525;
+                            opacity: 0.8;
+                            font-family: SourceHanSansCN-Regular;
+                        }
+                    }
+
+                    &:hover {
                         cursor: pointer;
-
-                        .operationBoradLeftIcon {
-                            width: 1.3vw;
-                            height: 2.2vh;
-                            background: url('../../assets/scene/calibration@2.png');
-                            background-size: 100% 100%;
-                            margin-right: 0.5vw;
-                        }
-
-                        .operationBoradLeftText {
-                            width: 2.3vw;
-                            height: 1.1vw;
-                            font-size: 1.1vw;
-                            line-height: 1.3vw;
-                        }
+                        background: #ffb129;
                     }
 
-                    .operationBoradRight {
-                        width: calc(21.9vw - 12.9vw);
-                        height: 5vh;
-                        background-color: #ffac29;
-                        display: flex;
-                        justify-content: space-around;
-                        align-items: center;
-                        background: url('../../assets/scene/operationBoradBorder@2.png');
-                        background-size: 100% 100%;
-                        position: relative;
-                        cursor: pointer;
-
-                        .operationBoradRightIcon {
-                            width: 1.3vw;
-                            height: 2.2vh;
-                            background: url('../../assets/scene/generate@2.png');
-                            background-size: 100% 100%;
-                            margin-right: 0.5vw;
-                        }
-
-                        .operationBoradRightText {
-                            width: 2.3vw;
-                            height: 1.1vw;
-                            font-size: 1.1vw;
-                            line-height: 1.3vw;
-                        }
-                    }
-
-                    .stationBg {
-                        width: 10px;
-                        height: 20px;
-                        background: url('~@/assets/2dEdit/station.png');
-                    }
                 }
+
+
             }
         }
 
         // 图层
         .layer {
-            width: 16.6vw;
+            width: 12.5vw;
+            margin-right: 0.52vw;
             height: 93.1vh;
-            background-color: #262626;
+            background-color: #050606;
             position: fixed;
             right: 0;
+            font-family: SourceHanSansCN-Regular;
+            font-size: 0.94vw;
+
+            .btns {
+                background: black;
+                display: flex;
+                justify-content: space-between;
+
+                img {
+                    vertical-align: middle;
+                }
+
+                .span-btn {
+                    width: 6.09vw;
+                    height: 1.56vw;
+                    display: inline-block;
+                    line-height: 1.56vw;
+                    background-color: rgba(255, 172, 41, 1);
+                    text-align: center;
+
+                    span {
+                        color: rgba(27, 27, 27, 1);
+                        margin-left: 0.83vw;
+                    }
+
+                    &:hover {
+                        cursor: pointer;
+                        background: #ffb129;
+                    }
+                }
+
+                span {
+                    font-family: SourceHanSansCN-Regular;
+                    font-size: 1.48vh;
+                }
+            }
 
             .layerTitle {
-                width: 16.6vw;
+                margin-top: 0.65vh;
+                width: 12.5vw;
                 height: 3.7vh;
-                background-color: #3f3f3f;
+                background-color: rgba(74, 76, 82, 1);
                 display: flex;
                 align-items: center;
 
@@ -1821,13 +2300,15 @@
             }
 
             .layerContent {
-                width: 16.6vw;
-                height: calc(73.1vh - 3.7vh - 4.6vh);
+                width: 12.5vw;
+                height: 52.31vh;
                 background-color: #262626;
                 font-size: 1.5vh;
 
                 .unitTitle {
-                    width: 16.6vw;
+                    width: 12.5vw;
+                    height: 52.31vh;
+                    overflow: auto;
 
                     .list-item {
                         display: flex;
@@ -1841,12 +2322,27 @@
                     }
 
                     .uniList {
-                        width: 16.6vw;
+                        /*width: 12.5vw;*/
                         height: 3.7vh;
                         line-height: 3.7vh;
                         background-color: #262626;
                         font-size: 1.5vh;
-                        text-indent: 0.6vw;
+                        /*text-indent: 1.25vw;*/
+                        padding-left: 1.25vw;
+                        box-sizing: content-box;
+                        /*cursor: pointer;*/
+                        .removeIcon {
+                            display: inline-block;
+                            float: right;
+                            margin-right: 0.31vw;
+
+                            img {
+                                width: 0.78vw;
+                                height: 0.83vw;
+                                vertical-align: middle;
+                                cursor: pointer;
+                            }
+                        }
                     }
                 }
             }
@@ -1855,39 +2351,66 @@
                 display: none;
             }
             .position-main {
-                width: 16.6vw;
-                height: 20vh;
+                width: 12.5vw;
+                height: 35.09vh;
                 background-color: #262626;
+
                 .posContent {
-                    width: 16.6vw;
-                    height: 20vh;
+                    /*width: 16.6vw;*/
+                    height: 35.09vh;
                     background-color: #262626;
+
                     .posIcon {
                         width: 1.1vw;
                         height: 1.9vh;
-                        background: url('../../assets/scene/tuceng@2.png');
+                        background: url('../../assets/scene/attribute.png');
                         background-size: 100% 100%;
                         display: inline-block;
                         margin: 0 0.5vw;
+                        vertical-align: baseline;
                     }
                     .posHeader {
-                        width: 16.6vw;
-                        background-color: #2f2f2f;
-                        height: 3.7vh;
+                        /*width: 16.6vw;*/
+                        background-color: rgba(74, 76, 82, 1);
+                        height: 3.52vh;
                         line-height: 3.7vh;
-                        font-size: 0.9vw;
+                        font-size: 0.94vw;
                     }
                     .posMain {
-                        width: 16.6vw;
+                        /*width: 16.6vw;*/
+                        font-family: ArialMT;
+                        font-size: 0.73vw;
+
+                        span {
+                            width: 1.5vw;
+                            display: inline-block;
+                            margin-left: 1.5vw;
+                            margin-right: 2.6vw;
+                        }
+
+                        div {
+                            &:nth-child(1) {
+                                margin-top: 1.04vw;
+                            }
+
+                            margin-top: 0.83vw;
+                        }
+
+                        .inputActive {
+                            border: 0.05vw solid rgba(230, 162, 64, 1) !important;
+                        }
+
                         .classInput {
-                            width: 4.6vw;
-                            margin: 0 0.5vw;
+                            width: 4.17vw;
+                            /*margin: 0 0.5vw;*/
                             border: 0.1vh solid #a59a9a;
                             background-color: black;
-                            height: 2.8vh;
+                            height: 2.22vh;
                             font-size: 0.5vw;
                             color: white;
+                            padding-left: 0.52vw;
                         }
+
                         .mainTop, .mainBottom {
                             margin: 0.5vw;
                             text-align: left;
@@ -1895,63 +2418,117 @@
                     }
                 }
             }
+        }
 
+        .tooltip {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: block;
+            position: fixed;
+            z-index: 99999;
+            top: 0;
+            left: 0;
+            text-align: center;
 
-            .layerFooter {
-                width: 16.6vw;
-                height: 4.6vh;
-                background-color: #404040;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+            .tip-main {
+                width: 20vw;
+                height: 27vh;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: url('../../assets/scene/tip2d.png') no-repeat;
+                background-size: contain;
+                display: inline-block;
 
-                .layerFooterBox {
-                    width: 8.9vw;
-                    height: 3.1vh;
+                header {
+                    margin-top: 1.2vh;
+                    font-family: SourceHanSansCN-Regular;
+                    font-size: 0.94vw;
+                    width: 17.2vw;
+                    margin-left: 1.4vw;
                     display: flex;
-                    align-items: center;
-                    justify-content: space-around;
+                    justify-content: space-between;
 
-                    div {
-                        width: 1.6vw;
-                        height: 2.8vh;
+                    span {
+                        &:hover {
+                            cursor: pointer;
+                        }
+                    }
+                }
+
+                section {
+                    .class-station {
+                        margin-top: 3vh;
+                        display: flex;
+                        margin-left: 1.2vw;
+
+                        span {
+                            color: rgba(255, 255, 255, 1);
+                            opacity: 0.5;
+                            font-family: SourceHanSansCN-Regular;
+                            font-size: 0.73vw;
+                        }
+
+                        input {
+                            width: 3.75vw;
+                            background: rgba(0, 0, 0, 0);
+                            opacity: 1 !important;
+                            color: white;
+                            margin: 0 0.36vw;
+                            border-bottom: 0.05vw solid rgba(255, 255, 255, 1);
+                        }
                     }
 
-                    .bind {
-                        background: url('../../assets/scene/bind@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
+                    .class-line {
+                        width: 17.6vw;
+                        height: 0.16vw;
+                        border-bottom: solid 0.05vw rgba(154, 154, 154, 1);
+                        opacity: 0.4;
+                        display: inline-block;
+                        margin-top: 1.2vw;
                     }
 
-                    .bindDisable {
-                        background: url('../../assets/scene/bindDisable@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
+                    .generate {
+                        .generate-msg {
+                            color: rgba(255, 255, 255, 1);
+                            opacity: 0.5;
+                            margin-top: 1.09vw;
+                            margin-left: 1vw;
+                            display: flex;
+                            font-size: 0.73vw;
+                            font-family: SourceHanSansCN-Regular;
+                        }
+
+                        .tip-btns {
+                            width: 20vw;
+                            margin-top: 1.98vw;
+                            display: flex;
+                            justify-content: center;
+
+                            .tip-false {
+                                background: url("../../assets/scene/tipFalse.png") no-repeat;
+                                background-size: cover;
+                            }
+
+                            .tip-true {
+                                background: url('../../assets/scene/tipTrue.png') no-repeat;
+                                background-size: cover;
+                                margin-left: 1.8vw;
+                                color: rgba(255, 172, 41, 1);
+                            }
+
+                            span {
+                                width: 6.67vw;
+                                height: 1.9vw;
+                                line-height: 1.9vw;
+                                display: inline-block;
+                                cursor: pointer;
+                            }
+                        }
                     }
 
-                    .editGround {
-                        background: url('../../assets/scene/editGround@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
-                    }
-
-                    .editGroundDisable {
-                        background: url('../../assets/scene/editGroundDisable@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
-                    }
-
-                    .delete {
-                        background: url('../../assets/scene/delete@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
-                    }
-
-                    .deleteDisable {
-                        background: url('../../assets/scene/deleteDisable@2.png') no-repeat;
-                        background-size: 1vw 1.6vh;
-                        background-position: center center;
-                    }
                 }
             }
         }
@@ -2042,10 +2619,10 @@
         @include addClass('gongzuozhan@2.png', 2.4vw, 3.3vh);
     }
     .PSBPassageway {
-        @include addClass('PSBPassageway.png', 2.4vw, 3.3vh);
+        @include addClass('pstWay.png', 2.4vw, 3.3vh);
     }
     .pickingChannel {
-        @include addClass('pickingChannel.png', 2.4vw, 3.3vh);
+        @include addClass('pickWay.png', 2.4vw, 3.3vh);
     }
 </style>
 

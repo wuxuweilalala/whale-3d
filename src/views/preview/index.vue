@@ -12,6 +12,8 @@
               :pickFinish='pickFinish[index]'
               :index="index"
               @actionAnimate='actionAnimate'
+              :hasProjectData="hasProjectData"
+              ref="scene"
               v-for='(item,index) in stationOptions'/>
         </div>
         <transition-group name="slide-fade">
@@ -110,24 +112,10 @@
             //获取指定单元的库存
             getBoxList() {
                 return (num) => {
+                    // console.log('num', num, this.endBox[num], this.endBox)
                     return this.endBox[num] || [];
                 };
             },
-            // getTitle() {
-            //     return this.currentProjectData;
-            // }
-            // classObj() {
-            // 	return (num) => {
-            // 		if (num > 1200) {
-            // 			return 'progress_value_max';
-            // 		} else if (num >= 800) {
-            // 			return '';
-            // 		} else {
-            // 			return 'progress_value_min';
-            // 		}
-            // 	};
-            // },
-
         },
         data() {
             return {
@@ -202,15 +190,16 @@
                 addRobotState: false,   // 是否可以加载机器人
                 shelvesHeight: 0,   // 货架的高度
                 material: null,
-                addWall: false,
                 loadState: {
                     addRobot: false,
                     addBox: false,
                 },
-                wallIsAdd: false,
                 responses: [],  // 响应存放的数组
                 resNum: 0,
                 getResData: null,
+                modelData: [],
+                stations: [],
+                hasProjectData: false,
             };
         },
         beforeRouteEnter(to, form, next) {
@@ -233,7 +222,7 @@
                 var texture = textureLoader.load(process.env.BASE_URL + 'mould/maps/bg.png');
                 this.scene.background = texture;
                 // this.scene.fog = new this.$THREE.Fog(this.scene.background, 1, 50000);
-                // this.stats = new Stats();
+                this.stats = new Stats();
                 // this.stats.showPanel(0);
                 this.clock = new this.$THREE.Clock();
                 // document.body.appendChild(this.stats.dom);
@@ -299,139 +288,68 @@
                 this.renderer.domElement.id = 'scene'
                 scene.appendChild(this.renderer.domElement);
             },
-            generateImage() {
-                let vm = this
+            // 添加机器人和推车
+            addRobot(currentX, station, num, name) {
+                const loader = new GLTFLoader();
+                let self = this;
                 let obj = {
                     index: 0
                 }
-                let index = 0;
-                let watch = WatchJS.watch;
-                let unwatch = WatchJS.unwatch;
-                let callWatchers = WatchJS.callWatchers;
-                watch(obj, 'index', () => {
-                    if (obj.index >= this.stationOptions.length) {
-                        this.$nextTick(() => {
-                            vm.renderer.render(vm.scene, vm.camera);
-                            // document.querySelector('#scene').toPng()
-                            domtoimage.toPng(document.querySelector('#scene')).then(res => {
-                                vm.$post('aProjScreen', {
-                                    id: sessionStorage.getItem('projectId'),
-                                    screenshot: res
-                                })
-                            })
-                        })
+                loader.load(process.env.BASE_URL + 'mould/Robotaction/Robotaction.gltf', gltf => {
+                    let mesh = gltf.scene;
+                    let group = new self.$THREE.Group();
+                    let x = 80
+                    group.name = name;
+                    console.log('group name', group.name)
 
-                    }
-                })
-            },
-            addRobot() {
-                //加载拣货机器人
-                if (this.flag) {
-                    let vm = this
-                    const loader = new GLTFLoader();
-                    let self = this;
-                    let length = Math.ceil(this.stationOptions.length / 2);
-                    let obj = {
-                        index: 0
-                    }
-                    let index = 0;
-                    let watch = WatchJS.watch;
-                    let unwatch = WatchJS.unwatch;
-                    let callWatchers = WatchJS.callWatchers;
-                    watch(obj, 'index', () => {
-                        if (obj.index >= self.stationOptions.length) {
-                            this.loadState.addRobot = true
-                            this.$nextTick(() => {
-                                vm.renderer.render(vm.scene, vm.camera);
-                                // document.querySelector('#scene').toPng()
-                                domtoimage.toPng(document.querySelector('#scene')).then(res => {
-                                    vm.$post('aProjScreen', {
-                                        id: sessionStorage.getItem('projectId'),
-                                        screenshot: res
-                                    })
-                                })
-                            })
+                    station.add(group);
+                    mesh.scale.set(0.05, 0.05, 0.05);
+                    let robotSize = new self.$THREE.Box3();
+                    robotSize.expandByObject(mesh);
+                    //添加货车
+                    var car1 = this.getMould.car;
+                    let car = car1.clone();
+                    car.scale.set(0.05, 0.05, 0.05);
+                    car.name = `car`;
+                    car.position.copy(mesh.getWorldPosition());
+                    let height = robotSize.max.y - robotSize.min.y;//机器人高度
+                    // group.position.x = self.stationOptions[obj.index].stationSite.x + x;
+                    group.position.x = currentX + 20
+                    group.position.y = self.stationOptions[obj.index].stationSite.y; //中心点为机器人中间
+                    // group.position.z = self.stationOptions[obj.index].stationSite.z - (robotSize.max.x - robotSize.min.x);
+                    group.position.z = - 50
+                    mesh.position.y += height / 2; //中心点为机器人中间
 
-                        }
-                    })
-                    for (let i = 0; i < length * 2; i++) {
-                        loader.load(process.env.BASE_URL + 'mould/Robotaction/Robotaction.gltf', gltf => {
-                            let mesh = gltf.scene;
-                            let group = new self.$THREE.Group();
-                            let x = 80;
-                            if (i >= length) {
-                                x = 330
-                                group.name = `people${i - length}-${i - length + 1}`;
-                            } else {
-                                group.name = `people${i}-${i}`;
-                            }
+                    let size = robotSize.getSize();
+                    var geometry = new self.$THREE.BoxGeometry(size.z / 4 - 50, height - 15, size.x);
+                    var material = new self.$THREE.MeshBasicMaterial({
+                        // color: 0x00ff00,
+                        transparent: true,
+                        opacity: 0,
+                    });
+                    var robotBox = new self.$THREE.Mesh(geometry, material);
+                    robotBox.name = 'box';
+                    robotBox.position.set(0, mesh.position.y, 0);
+                    group.add(robotBox);
+                    self.clickRobots.push(robotBox);
+                    car.position.x -= 195;
+                    car.position.z += 50;
+                    group.add(mesh);
+                    group.add(car);
 
-                            self.scene.add(group);
-                            mesh.scale.set(0.05, 0.05, 0.05);
-                            let robotSize = new self.$THREE.Box3();
-                            robotSize.expandByObject(mesh);
-                            //添加货车
-                            var car1 = this.getMould.car;
-                            let car = car1.clone();
-                            car.scale.set(0.05, 0.05, 0.05);
-                            car.name = `car${i}`;
-                            car.position.copy(mesh.getWorldPosition());
-                            // let ahelp = new self.$THREE.AxesHelper(300);
-                            // car.add(ahelp);
-                            // self.robotTeam.add(car);
-                            let height = robotSize.max.y - robotSize.min.y;//机器人高度
-                            if (i === length) {
-                                obj.index = 0
-                            }
-                            // if(i >= ((length + 1) / 2)) {
-                            //     console.log(i, length)
-                            //     obj.index = 0;
-                            //     console.log('i, ', i, length, this.stationOptions, obj.index)
-                            //     group.position.x = this.stationOptions[obj.index].stationSite.x + 340;
-                            // } else {
-                            //     console.log('i, length', i, length, this.stationOptions, obj.index)
-                            //     group.position.x = this.stationOptions[obj.index].stationSite.x + 80;
-                            // }
-                            console.log('this', self.stationOptions)
-                            group.position.x = self.stationOptions[obj.index].stationSite.x + x;
-                            group.position.y = self.stationOptions[obj.index].stationSite.y; //中心点为机器人中间
-                            group.position.z = self.stationOptions[obj.index].stationSite.z - (robotSize.max.x - robotSize.min.x);
-
-                            mesh.position.y += height / 2; //中心点为机器人中间
-
-                            let size = robotSize.getSize();
-                            var geometry = new self.$THREE.BoxGeometry(size.z / 4 - 50, height - 15, size.x);
-                            var material = new self.$THREE.MeshBasicMaterial({
-                                // color: 0x00ff00,
-                                transparent: true,
-                                opacity: 0,
-                            });
-                            var robotBox = new self.$THREE.Mesh(geometry, material);
-                            robotBox.name = 'box';
-                            robotBox.position.set(0, mesh.position.y, 0);
-                            group.add(robotBox);
-                            self.clickRobots.push(robotBox);
-                            car.position.x -= 195;
-                            car.position.z += 50;
-                            group.add(mesh);
-                            group.add(car);
-
-                            obj.index += 2;
-                            let mixer = new self.$THREE.AnimationMixer(gltf);
-                            self.mixer[i] = new self.$THREE.AnimationMixer(mesh);
-                            self.mixer[i].name = group.name
-                            // self.$store.commit('mould/setAnimation',{mixer,index:self.key})
-                            // mixer.clipAction 返回一个可以控制动画的AnimationAction对象  参数需要一个AnimationClip 对象
-                            // 告诉AnimationAction启动该动作
-                            // let action = self.mixer.clipAction(gltf.animations[1]);
-                            // action.play();
-                            self.mixerAction[i] = self.mixer[i].clipAction(gltf.animations[0]);
-                            self.mixerAction[i].name = group.name
-                            console.log(self.mixerAction)
-                        });
-                    }
-                    this.flag = false;
-                }
+                    obj.index += 2;
+                    let mixer = new self.$THREE.AnimationMixer(gltf);
+                    self.mixer[num] = new self.$THREE.AnimationMixer(mesh);
+                    self.mixer[num].name = group.name
+                    // self.$store.commit('mould/setAnimation',{mixer,index:self.key})
+                    // mixer.clipAction 返回一个可以控制动画的AnimationAction对象  参数需要一个AnimationClip 对象
+                    // 告诉AnimationAction启动该动作
+                    // let action = self.mixer.clipAction(gltf.animations[1]);
+                    // action.play();
+                    self.mixerAction[num] = self.mixer[num].clipAction(gltf.animations[0]);
+                    self.mixerAction[num].name = group.name
+                    // console.log(self.mixerAction)
+                });
             },
             // 初始化轨迹球控件
             initControls() {
@@ -472,12 +390,13 @@
             actionAnimate(event) {
                 let self = this;
                 self.pickActionList.push(event);
+                debugger
                 // self.startAction=true
             },
             findMixerAction(name) {
                 for (let i = 0; i < this.mixerAction.length; i++) {
                     let m = this.mixerAction[i]
-                    console.log('m', m)
+                    // console.log('m', m)
                     if (m.name == name) {
                         return i
                     }
@@ -495,7 +414,6 @@
             robotRotateAnimate(stationIndex, people, x, y, bool) {
                 if (stationIndex == x) {
                     if(bool === false) {
-                        console.log('xxxxxxxxxxxxx', stationIndex, bool)
 
                         let rotate = {
                             x: people.position.x,
@@ -519,8 +437,6 @@
                     }
                 } else if(stationIndex == y){
                     if(bool === true) {
-                        console.log('yyyyyyyyyyyy', stationIndex, bool)
-
                         let rotate = {
                             x: people.position.x,
                         }
@@ -540,25 +456,47 @@
                     }
                 }
             },
+            getPeopleIndex(stationIndex) {
+                let result = []
+                let index = -1
+                // console.log('this.modelData.shelve', this.modelData.shelve)
+                // debugger
+                for (let i = 0; i < this.modelData[0].shelve.length; i++) {
+                    let model = this.modelData[0].shelve[i]
+                    if (model.name === 'station') {
+                        result.push(model)
+                    }
+                }
+                for (let i = 0; i < result.length; i++) {
+                    let re = result[i]
+                    if (re.x == -stationIndex) {
+                        index = i
+                        break
+                    }
+                }
+                return index
+            },
             pickAnimate(event) {
                 let self = this;
                 // console.log(' event', event, event.index, parseInt(event.index / 2));
                 let num = parseInt(event.index / 2);
                 let stationIndex = event.stationIndex
                 let wallIndex = 0;
-                if (stationIndex == -4 || stationIndex == -3) {
-                    wallIndex = 1;
-                } else if (stationIndex == -2 || stationIndex == -1) {
-                    wallIndex = 0;
+                let peopleIndex = this.getPeopleIndex(stationIndex)
+                if (peopleIndex === -1) {
+                    return
                 }
-                let people = self.scene.children.find(ele => ele.name == `people${num}-${wallIndex}`);
+                // let people = self.scene.children.find(ele => ele.name == `people${num}-${peopleIndex}`);
+                let people = this.scene.getObjectByName(`people${num}-${peopleIndex}`)
                 // this.robotRotateAnimate(stationIndex, people, -4, -3, this.isRotate1)
                 // this.robotRotateAnimate(stationIndex, people, -2, -1, this.isRotate2)
-
-                let zStart = [people.position.z, event.box.getWorldPosition().z];
+                // debugger
+                let zWidth = event.box.getWorldPosition().z - people.getWorldPosition().z
+                let zStart = [people.position.z, people.position.z + zWidth];
                 let ahead = self.psbAnimateX(people, zStart, 2000);
                 ahead.start();
-                let index = self.findMixerAction(`people${num}-${wallIndex}`)
+                let index = self.findMixerAction(`people${num}-${peopleIndex}`)
+                debugger
                 self.mixerIndex.push(index);
                 ahead.onComplete(() => {
                     self.mixerAction[index].play();
@@ -569,6 +507,7 @@
                         self.pickActionList.shift();
                     });
                 });
+
             },
             // 拣货机器人动画(X方向)
             psbAnimateX(group, params, duration) {
@@ -616,20 +555,21 @@
                 let self = this;
                 let time = self.clock.getDelta();
                 self.mixerIndex.map((e, index) => {
-                    // debugger
                     self.mixer[e] && self.mixer[e].update(time);
                 });
-                let position = this.camera.position
-                let bool1 = (position.y < 400 && position.y > 0) && (position.x > -1800 && position.x < 1400)
-                let bool2 = (position.y < 0 || position.y > 400) && (position.x < -1800 || position.x > 1400)
-                if(bool1 && this.sceneOption.length > 0) {
-                    this.setMeshOpacity(0)
-                } else if(bool2 && this.sceneOption.length > 0) {
-                    this.setMeshOpacity(0.5)
-                } else if(this.sceneOption.length > 0) {
-                    this.setMeshOpacity(0.5)
-                }
+                // 监听相机位置变化
+                // let position = this.camera.position
+                // let bool1 = (position.y < 400 && position.y > 0) && (position.x > -1800 && position.x < 1400)
+                // let bool2 = (position.y < 0 || position.y > 400) && (position.x < -1800 || position.x > 1400)
+                // if(bool1 && this.sceneOption.length > 0) {
+                //     this.setMeshOpacity(0)
+                // } else if(bool2 && this.sceneOption.length > 0) {
+                //     this.setMeshOpacity(0.5)
+                // } else if(this.sceneOption.length > 0) {
+                //     this.setMeshOpacity(0.5)
+                // }
                 // this.camera.updateMatrixWorld();
+                // this.stats.update();
                 // 线条移动
                 this.linesMove()
                 // psb 机器人的第一视角(跟随 psb 移动)
@@ -689,10 +629,11 @@
                             yStart: start.y,
                             xEnd: end.x,
                             xStart: start.x,
-                            order: start.z - 1
+                            order: start.z - 1,
+                            containerCode: data[i].containerCode,
                         };
                         let value = this.calculateTime(params);
-                        this.log('total time ', value)
+                        // this.log('total time ', value)
                         this.$store.commit('index/setProgress', {attribute: 'totalTime', value})
                     }
                 }
@@ -700,38 +641,55 @@
             // 处理动画数据
             handleAnimateData(data) {
                 let result = data;
+
                 result.forEach((item) => {
-                    if (item.startPoint.x > 26) {
-                        item.startPoint.x = item.startPoint.x - 26
-                    } else {
-                        if (item.startPoint.x == 4) {
-                            item.startPoint.x = -4
-                        } else if (item.startPoint.x == 14) {
-                            item.startPoint.x = -3
-                        } else if (item.startPoint.x == 16) {
-                            item.startPoint.x = -2
-                        } else if (item.startPoint.x == 26) {
-                            item.startPoint.x = -1
-                        } else if (item.startPoint.x == 2) {
-                            item.startPoint.x = -5
+                    for (let i = 0; i < this.stations.length; i++) {
+                        let model = this.stations[i]
+                        if (item.startPoint.x === model.x) {
+                            item.startPoint.x = -model.x
+                        }
+                        if (item.endPoint.x === model.x) {
+                            item.endPoint.x = -model.x
                         }
                     }
-                    if (item.endPoint.x > 26) {
-                        item.endPoint.x = item.endPoint.x - 26
-                    } else {
-                        if (item.endPoint.x == 4) {
-                            item.endPoint.x = -4
-                        } else if (item.endPoint.x == 14) {
-                            item.endPoint.x = -3
-                        } else if (item.endPoint.x == 16) {
-                            item.endPoint.x = -2
-                        } else if (item.endPoint.x == 26) {
-                            item.endPoint.x = -1
-                        } else if (item.endPoint.x == 2) {
-                            item.endPoint.x = -5
-                        }
-                    }
+                    // if (item.startPoint.x > 26) {
+                    //     item.startPoint.x = item.startPoint.x - 26
+                    // } else {
+                    //     if (item.startPoint.x == 4) {
+                    //         item.startPoint.x = -4
+                    //     } else if (item.startPoint.x == 14) {
+                    //         item.startPoint.x = -3
+                    //     } else if (item.startPoint.x == 16) {
+                    //         item.startPoint.x = -2
+                    //     } else if (item.startPoint.x == 26) {
+                    //         item.startPoint.x = -1
+                    //     } else if (item.startPoint.x == 2) {
+                    //         item.startPoint.x = -5
+                    //     }
+                    // }
+                    // if (item.endPoint.x > 26) {
+                    //     item.endPoint.x = item.endPoint.x - 26
+                    // } else {
+                    //     if (item.endPoint.x == 4) {
+                    //         item.endPoint.x = -4
+                    //     } else if (item.endPoint.x == 14) {
+                    //         item.endPoint.x = -3
+                    //     } else if (item.endPoint.x == 16) {
+                    //         item.endPoint.x = -2
+                    //     } else if (item.endPoint.x == 26) {
+                    //         item.endPoint.x = -1
+                    //     } else if (item.endPoint.x == 2) {
+                    //         item.endPoint.x = -5
+                    //     }
+                    // }
                 })
+                // console.log('reuslt', result)
+                // let rs = []
+                // for (let i = 0; i < 4; i++) {
+                //     rs.push(result[i])
+                // }
+                // // console.log('rssssssss', rs)
+                result.splice(0, 3)
                 return [result]
             },
             getStockData(date) {
@@ -772,6 +730,7 @@
                 } else {
                     this.handleData(this.getResData);
                     this.animateData = this.handleAnimateData(this.getResData);
+                    this.animateData = this.getResData;
                 }
             },
             // 运动坐标转换 animateConvert(name, list) { play(name, list) {
@@ -783,7 +742,7 @@
                 this.log('list', list)
                 let projectId = list[1] && list[1].id || '';
                 let mockData = [[{
-                    containerCode: "PSLX-120257",
+                    containerCode: "PSLX-10000",
                     endPoint: {x: 16, y: 0, z: 4},
                     endTime: "May 29, 2020 11:38:24 AM",
                     index: 0,
@@ -798,7 +757,7 @@
                     startTime: "May 29, 2020 11:38:05 AM",
                     taskType: "PS鲸仓拣选",
                 }, {
-                    containerCode: "PSLX-120007",
+                    containerCode: "PSLX-120003",
                     endPoint: {x: 16, y: 0, z: 2},
                     endTime: "May 29, 2020 11:33:31 AM",
                     index: 0,
@@ -813,7 +772,7 @@
                     startTime: "May 29, 2020 11:33:09 AM",
                     taskType: "PS鲸仓拣选",
                 }, {
-                    containerCode: "PSLX-120260",
+                    containerCode: "PSLX-120000",
                     endPoint: {x: 26, y: 0, z: 5},
                     endTime: "May 29, 2020 11:33:09 AM",
                     index: 0,
@@ -828,7 +787,7 @@
                     startTime: "May 29, 2020 11:32:51 AM",
                     taskType: "PS鲸仓拣选" ,
                 }, {
-                    containerCode: "PSLX-120259",
+                    containerCode: "PSLX-120001",
                     endPoint: {x: 16, y: 0, z: 5},
                     endTime: "May 29, 2020 11:38:58 AM",
                     index: 0,
@@ -843,7 +802,7 @@
                     startTime: "May 29, 2020 11:38:39 AM",
                     taskType: "PS鲸仓拣选",
                 }, {
-                    containerCode: "PSLX-120250",
+                    containerCode: "PSLX-120003",
                     endPoint: {x: 53, y: 1, z: 4},
                     endTime: "May 29, 2020 11:34:35 AM",
                     index: 0,
@@ -861,10 +820,14 @@
                 if (hasData) {
                     self.handleData(this.playedAnimateData);
                     self.animateData = this.handleAnimateData(this.playedAnimateData);
+                    // console.log('playedAnimateData', this.playedAnimateData)
+
                     // self.animateData = this.handleAnimateData(mockData);
                     self.$store.commit('index/setFirstPlay', false);
                 } else {
                     this.loading = true
+                    // self.handleData(mockData);
+                    // this.animateData = mockData
                     this.animateData = []
                     this.getStockData(date)
                     // self.$get('gStockData', params).then(res => {
@@ -964,6 +927,10 @@
             calculateTime(params) {
                 let grab = 21 - params.yStart;  //抓箱时间 //第一层为21(y为0)，逐层减一
                 let set = 24 - params.yEnd;  //放箱时间
+                if (params.containerCode === '') {
+                    grab = 0;
+                    set = 0;
+                }
                 // let move= Math.round((params.xEnd-params.xStart)*0.245+7 ) //移动时间
                 let move = params.xEnd - params.xStart;  //计算psb移动时间
                 move = ~~(Math.abs(move) * 0.245 + 7 + 0.5);
@@ -993,21 +960,21 @@
                 });
             },
             // 创建第二层地板 self 是 this  floorMaterial 是材质信息
-            createFloorF2(self, floorMaterial, width, height, position, stationX) {
+            createFloorF2(self, floorMaterial, width, height, position) {
                 let unitF1 = parseInt(self.sceneOption[0].stationNum);
                 let unitF2 = parseInt(self.sceneOption[1].stationNum);
                 let shelvesF2 = self.sceneOption[1].shelvesUnitNum;
-                let widthF2 = unitF2 * 305 + 800;
+                let widthF2 = unitF2 * 305 + 1000;
                 if (unitF1 > unitF2) {
-                    widthF2 = unitF1 * 305 + 800;
+                    widthF2 = unitF1 * 305 + 1000;
                 }
-                let heightF2 = shelvesF2 * 70 + 800;
+                let heightF2 = shelvesF2 * 70 + 1000;
                 let floorGeometry1 = new self.$THREE.BoxBufferGeometry(heightF2 - 150, widthF2, 1);
                 let floor1 = new self.$THREE.Mesh(floorGeometry1, floorMaterial);
                 floor1.rotateX(Math.PI / 2);
-                floor1.position.y = 200;
-                floor1.position.x = position.x - (heightF2 - 150) / 2 + stationX + 200;
-                floor1.position.z = position.z - widthF2 / 2 + 200;
+                floor1.position.y = 185;
+                floor1.position.x = position.x - (heightF2 - 150) / 2 + 150;
+                floor1.position.z = position.z - widthF2 / 2 + 150;
                 // floor1.position.x = height / 2 - heightF2 / 2 + 100;
                 // floor1.position.z = width / 2 - widthF2 / 2;
 
@@ -1036,32 +1003,6 @@
                 // this.initObject();
                 var gridHelper = new this.$THREE.GridHelper(100000, 100, 0x13131c, 0x414145);
                 self.scene.add(gridHelper);
-                // let floorGeometry = new self.$THREE.BoxBufferGeometry(10000, 10000, 1);
-                // let floorMaterial = new self.$THREE.MeshBasicMaterial({
-                //     // map: texture,
-                //     // wireframe: true,
-                //     // transparent: true,
-                //     // opacity: 0.45,
-                // });
-                // let floor = new self.$THREE.Mesh(floorGeometry, floorMaterial);
-                // floor.rotateX(Math.PI / 2);
-                // floor.name = 'ground';
-                // self.scene.add(floor);
-
-                // loader.load(process.env.BASE_URL + 'mould/maps/floor2.jpg', function (texture) {
-                //         texture.wrapS = texture.wrapT = self.$THREE.RepeatWrapping;
-                //         texture.repeat.set(10, 10);
-                //         let floorGeometry = new self.$THREE.BoxBufferGeometry(10000, 10000, 1);
-                //         let floorMaterial = new self.$THREE.MeshBasicMaterial({
-                //             map: texture,
-                //             // transparent: true,
-                //             // opacity: 0.45,
-                //         });
-                //         let floor = new self.$THREE.Mesh(floorGeometry, floorMaterial);
-                //         floor.rotateX(Math.PI / 2);
-                //         floor.name = 'ground';
-                //         self.scene.add(floor);
-                // })
 
             },
             //地板
@@ -1089,27 +1030,26 @@
                     let floor = new self.$THREE.Mesh(floorGeometry, floorMaterial);
                     floor.rotateX(Math.PI / 2);
                     floor.name = 'ground';
-                    let stationNum = self.sceneOption[0].stationNum - 1
-                    let shelvesNum = self.sceneOption[0].shelvesUnitNum
-                    let wallGroup = self.scene.getObjectByName('wallGroup0-0')
-                    let wallGroup3 = self.scene.getObjectByName(`shelves0-${shelvesNum}`)
-                    // debugger
-                    let wallGroupLast = self.scene.getObjectByName(`wallGroup${stationNum}-${stationNum}`)
-                    let position = wallGroup.getWorldPosition()
-                    let positionLast = wallGroupLast.getWorldPosition()
-                    let position3 = wallGroup3.getWorldPosition()
-                    let stationWidth = positionLast.z - position.z
-                    let stationX = position3.x - position.x
-                    // 300 是距离地板边缘的宽度
-                    floor.position.x = position.x - height / 2 + stationX + 300
+                    // let stationNum = self.sceneOption[0].stationNum - 1
+                    // let shelvesNum = self.sceneOption[0].shelvesUnitNum
+                    let model = self.$refs.scene[0].getModelObj(0)
+                    let firstName = model.firstObj.name
+                    let lastName = model.lastObj.name
+                    let firstX = model.firstObj.x
+                    let lastX = model.lastObj.x + model.lastObj.num - 1
+                    let first = self.$refs.scene[0].getBox(`${firstName}0-${firstX}`)
+                    let last = self.$refs.scene[0].getBox(`${lastName}0-${lastX}`)
+                    let stationX = first.max.x - last.min.x
+                    // 500 是距离地板边缘的宽度
+                    floor.position.x = first.max.x - height / 2 + 500
 
-                    floor.position.z = position.z - width / 2 + 300
+                    floor.position.z = first.max.z - width / 2 + 500
                     // var axesHelper = new self.$THREE.AxesHelper( 5000 );
                     // floor.add( axesHelper );
                     self.scene.add(floor);
                     // 第二层的地板
                     if (self.floorNum == 2) {
-                        self.createFloorF2(self, floorMaterial, width, height, position, stationX);
+                        self.createFloorF2(self, floorMaterial, width, height, first.max);
                     }
                 });
             },
@@ -1196,7 +1136,11 @@
             },
             // 获取标题
             getTitle() {
-                return this.currentProjectData && this.currentProjectData.pro_name || this.getProjectName;
+                if (sessionStorage.getItem('fromEdit')) {
+                    return this.currentProjectData.pro_name || this.currentProjectData.name
+                } else {
+                    return this.currentProjectData && this.currentProjectData.pro_name || this.getProjectName;
+                }
             },
 
             // 机器人、psb点击事件(点击切换第一人称视角)
@@ -1260,25 +1204,28 @@
                 let height = this.areaInfo[0].value.height;
                 this.createFloor(width, height);
                 this.createGround();
-            },
-            requestCurrentProjectData() {
-                let params = {
-                    id: sessionStorage.getItem('projectId'),
-                };
-                this.$get('gProject', params).then(res => {
-                    if (res.code == '200' && res.data) {
-                        console.log(res.data)
-                        // this.setCurrentProjectData()
-                    }
+                let self = this
+                this.$nextTick(() => {
+                    self.renderer.render(self.scene, self.camera);
+                    // document.querySelector('#scene').toPng()
+                    domtoimage.toPng(document.querySelector('#scene')).then(res => {
+                        self.$post('aProjScreen', {
+                            id: sessionStorage.getItem('projectId'),
+                            screenshot: res
+                        })
+                    })
                 })
+                // var axesHelper = new this.$THREE.AxesHelper( 1000 );
+                // this.scene.add(axesHelper)
             },
-            deleteAll() {
-                this.scene.traverse((obj) => {
-                    if(obj.type === 'Mesh') {
-                        obj.geometry.dispose();
-                        obj.material.dispose();
+            getStationIndex() {
+                for (let i = 0; i < this.modelData[0].shelve.length; i++) {
+                    let model = this.modelData[0].shelve[i]
+                    let name = model.name
+                    if(name === 'station') {
+                        this.stations.push(model)
                     }
-                })
+                }
             },
         },
         watch: {
@@ -1293,6 +1240,13 @@
                     this.whalehouseID = this._get(val, 'projectDetail.whalehouseID', '');
                     this.requestUrl = this._get(val, 'projectDetail.requestUrl', '');
                     this.areaInfo = this._get(val, 'projectDetail.areaInfo', []);
+                    this.modelData = this._get(val, 'projectDetail.modelData', {})
+                    // console.log('val', val)
+                    this.hasProjectData = true
+                    this.$store.commit('index/setHasData', true)
+                    if(JSON.stringify(this.modelData) !== '{}') {
+                        this.getStationIndex()
+                    }
                     if (val && val.id == sessionStorage.getItem('projectId')) {
                         let vm = this;
                         let list = val.projectDetail.sceneOption;
@@ -1310,10 +1264,6 @@
                         // }
                         this.$nextTick(() => {
                             this.initControls();
-                            if(this.areaInfo.length > 0 && this.sceneOption.length > 0 && this.addWall && !this.wallIsAdd) {
-                                // this.createGroundAndFloor();
-                                this.wallIsAdd = true
-                            }
                             // vm.scene.add(gridHelper);
                             // vm.scene.add(gridHelper2);
                         });
@@ -1324,10 +1274,6 @@
                 // immediate:,
                 handler(val, old) {
                     if (val.length) {
-                        if(this.areaInfo.length > 0 && this.sceneOption.length > 0 && this.addWall && !this.wallIsAdd) {
-                            // this.createGroundAndFloor();
-                            this.wallIsAdd = true
-                        }
                         let val1 = val[1].value;     // 使用面积的长宽
                         let val0 = val[0].value;     // 总面积的长宽
                         let percent = ((val1.width * val1.height) / (val0.width * val0.height) * 100).toFixed(2);
@@ -1345,33 +1291,21 @@
             },
             sceneOption: {
                 handler(val, old) {
-                    if (val.length == 1 && this.addWall && !this.wallIsAdd) {
+                    if (val.length == 1) {
                         // this.createGroundAndFloor();
-                        this.wallIsAdd = true
                     }
                 }
             },
             endBox: {
                 handler(val, old) {
                     this.loadState.addBox = true;
-                    this.createGroundAndFloor();
                 }
             },
             loadState: {
                 deep: true,
                 handler(val, old) {
-                    if(val.addRobot && val.addBox) {
+                    if(val.addBox) {
                         this.loading = false
-                    }
-                }
-            },
-            addWall: {
-                handler(val) {
-                    if(val) {
-                        if(this.areaInfo.length > 0 && this.sceneOption.length > 0 && !this.wallIsAdd) {
-                            // this.createGroundAndFloor();
-                            this.wallIsAdd = true
-                        }
                     }
                 }
             },
@@ -1400,11 +1334,11 @@
                     if(this.getReqTimes.length === val && this.playState) {
                         let self = this
                         this.$get('gCoreData', { project_id: sessionStorage.getItem('projectId') }).then(res => {
-                            console.log('this ***(((((', this)
                             if(res.code == '200' && res.data) {
                                 self.getResData = res.data.proj_3D
                                 self.handleData(res.data.proj_3D);
                                 self.animateData = self.handleAnimateData(res.data.proj_3D);
+                                // self.animateData = res.data.proj_3D;
                                 self.$store.commit('index/setFirstPlay', false);
                             } else {
                                 self.$message({
@@ -1437,16 +1371,30 @@
             this.scene = null;
             this.camera = null;
             cancelAnimationFrame(this.animateTimer);
+            // sessionStorage.setItem('')
         },
         created() {
-
+            // console.log('撒靠靠靠靠靠靠')
+            // let fromEdit = JSON.parse(sessionStorage.getItem('fromEdit'))
+            // let data = JSON.parse(localStorage.getItem('currentProjectData'))
+            // let { projectName, ...reset } = data
+            // if(fromEdit == true) {
+            //     debugger
+            //     this.currentProjectData = {
+            //         id: Number(sessionStorage.getItem('projectId')),
+            //         name: projectName,
+            //         nowTime: reset.nowTime,
+            //         projectDetail: {...reset },
+            //     }
+            //     console.log('currentProjectData', this.currentProjectData)
+            // } else {
+            //     this.currentProjectData = this.getCurrentProjectData
+            // }
         },
-
         mounted() {
             this.initRenderer();
             this.animate();
             this.initLockControl();
-            // this.requestCurrentProjectData();
             // setTimeout(() => {
             // 	this.animateConvert();
             // }, 2000);

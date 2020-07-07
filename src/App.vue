@@ -55,5 +55,6 @@
     body {
         background: url("~@/assets/scene/bigBg.png");
         color: #fff;
+        background-size: cover;
     }
 </style>

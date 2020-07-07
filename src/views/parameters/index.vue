@@ -46,7 +46,8 @@
             <div class="detailWrapper">
                 <div class="detailLeft">
                     <div class="detailBigImg">
-                        <img src="" alt="">
+                        <img src="../../assets/scene/psb3.png"
+                          alt="">
                     </div>
                     <div class="detailListWrapper">
                         <div class="detailList">
@@ -141,32 +142,32 @@
                 currentIndex:-1,
                 machineList:[
                     {
-                        bigImg:'',
-                        title:'机器人PST',
-                        info:[
-                            {name:'机器人 PSB 数量',value:200,unit:'台'},
-                            {name:'任务待完成数',value:123,unit:'台'},
-                            {name:'已完成数',value:77,unit:'台'},
-                            {name:'饱和比例',value:'1.3:1',unit:''},
+                        bigImg: require('../../assets/scene/psb.png'),
+                        title: '机器人PST',
+                        info: [
+                            {name: '机器人 PSB 数量', value: 200, unit: '台'},
+                            {name: '任务待完成数', value: 123, unit: '台'},
+                            {name: '已完成数', value: 77, unit: '台'},
+                            {name: '饱和比例', value: '1.3:1', unit: ''},
                         ]
                     }, {
-                        bigImg:'',
-                        title:'机器人PSB',
-                        info:[
-                            {name:'机器人 PSB 数量',value:200,unit:'台'},
-                            {name:'任务待完成数',value:123,unit:'台'},
-                            {name:'已完成数',value:77,unit:'台'},
-                            {name:'饱和比例',value:'1.3:1',unit:''},
+                        bigImg: require('../../assets/scene/psb2.png'),
+                        title: '机器人PSB',
+                        info: [
+                            {name: '机器人 PSB 数量', value: 200, unit: '台'},
+                            {name: '任务待完成数', value: 123, unit: '台'},
+                            {name: '已完成数', value: 77, unit: '台'},
+                            {name: '饱和比例', value: '1.3:1', unit: ''},
                         ]
                     },
                     {
-                        bigImg:'',
-                        title:'分拣员',
-                        info:[
-                            {name:'机器人 PSB 数量',value:200,unit:'台'},
-                            {name:'任务待完成数',value:123,unit:'台'},
-                            {name:'已完成数',value:77,unit:'台'},
-                            {name:'饱和比例',value:'1.3:1',unit:''},
+                        bigImg: require('../../assets/scene/psb3.png'),
+                        title: '分拣员',
+                        info: [
+                            {name: '机器人 PSB 数量', value: 200, unit: '台'},
+                            {name: '任务待完成数', value: 123, unit: '台'},
+                            {name: '已完成数', value: 77, unit: '台'},
+                            {name: '饱和比例', value: '1.3:1', unit: ''},
                         ]
                     }
                     ],
@@ -304,8 +305,13 @@
                 .bigImg {
                     width: 8.1vw;
                     height: 8.6vw;
-                    border:1px solid red;
+                    border: 1px solid #ffac29;
                     margin-right: 1.6vw;
+
+                    img {
+                        width: 8.1vw;
+                        height: 8.6vw;
+                    }
                 }
                 .itemInfo {
                     .itemName {
@@ -348,8 +354,13 @@
                     .detailBigImg {
                         width: 16vw;
                         height: 19vw;
-                        border:1px solid red;
+                        border: 1px solid #ffac29;
                         margin-bottom: 1.2vw;
+
+                        img {
+                            width: 16vw;
+                            height: 19vw;
+                        }
                     }
                     .detailListWrapper {
                         text-align: left;

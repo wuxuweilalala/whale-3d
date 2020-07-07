@@ -43,7 +43,6 @@
                                       }"
                                   :transform="'translate('+`${projectBoxWidth/2-$vwToPx(1.3)}`+')'"
                                 />
-
                             </svg>
                             <!--                            <svg version="1.1"-->
                             <!--                              transform="rotate(180)"-->
@@ -149,13 +148,15 @@
                     <div :class="{active:floorTabActiveIndex===0}"
                       @click="toggleFloorTabActiveIndex(0)"
                       class="tab first">
-                        <input v-model='sceneOption[0].id'/>
+                        <input class="floor-input"
+                          v-model='sceneOption[0].id'/>
                     </div>
                     <div :class="{active:floorTabActiveIndex===1}"
                       @click="toggleFloorTabActiveIndex(1)"
                       class="tab second"
                       v-if="sceneOption.length>1">
-                        <input v-model='sceneOption[1].id'/>
+                        <input class="floor-input"
+                          v-model='sceneOption[1].id'/>
                         <span @click.stop="deleteFloor"
                           class="closeBtn iconfont icon-Shutdown"></span>
                     </div>
@@ -438,6 +439,8 @@
     import shareImgSrcNo from '../../../assets/scene/shareSelected.png';
     import {Slider, Upload, Loading, Radio, RadioGroup, Message, Dialog} from 'element-ui';
 
+    import basicData from "./basicData";
+
     export default {
         name: 'LeftSide',
         components: {
@@ -462,13 +465,7 @@
                     stationNum: '',
                     shelvesUnitNum: '',
                     id: 'P-PMS01'
-                },
-                    {
-                        stationNum: '',
-                        shelvesUnitNum: '',
-                        id: 'P-PMS02'
-                    },
-                ],
+                },],
                 floorTabActiveIndex: 0,
                 // areaNum: 0,
                 // usedAreaNum: 0,
@@ -511,6 +508,7 @@
                     type: true,
                     typeActive: false,
                     has: true,
+                    disabled: true,
                 },
                 editF2Type: {
                     type: true,
@@ -520,6 +518,9 @@
                 // 是否显示进入页面
                 enterShow: false,
                 enterF2Show: false,
+                modelData: basicData,  // 生成模型需要的数据
+                modelDataF1: basicData[0],
+                modelDataF2: basicData[0],
             };
         },
         props: {
@@ -691,6 +692,7 @@
                     shelvesUnitNum: '',
                     id: 'P-PMS02'
                 })
+                this.modelData.push(basicData[0])
             },
             deleteFloor() {
                 this.toggleFloorTabActiveIndex(0)
@@ -715,7 +717,7 @@
                 return `${year}/${this.formatTime(mon)}/${this.formatTime(day)} ${this.formatTime(hour)}:${this.formatTime(min)}`;
             },
             setSceneOptionValue() {
-                if (this.sceneOption.length >= 1) {
+                if (this.sceneOption.length == 1) {
                     if (this.sceneOption[0].stationNum !== '') {
                         this.stationNumF1 = this.sceneOption[0].stationNum
                     }
@@ -729,18 +731,30 @@
                     })
                 }
                 if (this.sceneOption.length == 2) {
+                    if (this.sceneOption[0].stationNum !== '') {
+                        this.stationNumF1 = this.sceneOption[0].stationNum
+                    }
+                    if (this.sceneOption[0].shelvesUnitNum !== '') {
+                        this.shelvesUnitNumF1 = this.sceneOption[0].shelvesUnitNum
+                    }
                     if (this.sceneOption[1].stationNum !== '') {
                         this.stationNumF2 = this.sceneOption[1].stationNum
                     }
                     if (this.sceneOption[1].shelvesUnitNum !== '') {
                         this.shelvesUnitNumF2 = this.sceneOption[1].shelvesUnitNum
                     }
+                    this.sceneOption.splice(0, 1, {
+                        stationNum: this.stationNumF1,
+                        shelvesUnitNum: this.shelvesUnitNumF1,
+                        id: 'P-PMS01'
+                    })
                     this.sceneOption.splice(1, 2, {
                         stationNum: this.stationNumF2,
                         shelvesUnitNum: this.shelvesUnitNumF2,
                         id: 'P-PMS02'
                     })
                 }
+                // console.log('set value ', this.sceneOption)
             },
             setAllOption() {
                 this.sceneOptionShow = false
@@ -751,6 +765,14 @@
                 this.enterShow = false;
                 this.basicType.typeActive = true;
                 this.editType.typeActive = false;
+            },
+            getShevleNum(modelData) {
+                let num = 0
+                for (let i = 0; i < modelData[0].shelve.length; i++) {
+                    let she = modelData[0].shelve[i]
+                    num = num + she.num
+                }
+                return num
             },
             createProject() {
                 if (!this.stationTipShow) {
@@ -767,7 +789,7 @@
                     } = this;
                     const {
                         stationNum,
-                        shelvesUnitNum
+                        shelvesUnitNum,
                     } = sceneOption[0];
                     let d = new Date();
                     let time = this.getDate(d);
@@ -776,6 +798,9 @@
                         projectName = this.projectName
                     }
                     this.setIsCreate(true)
+                    let modelData = [this.modelDataF1, this.modelDataF2]
+                    debugger
+                    let shelveNum = this.getShevleNum(modelData)
                     this.creatProjectData({
                         projectName,
                         areaInfo: [{
@@ -795,14 +820,15 @@
                         sceneOption: sceneOption,
                         whalehouseID: whalehouseID,
                         requestUrl: requestUrl,
+                        modelData: modelData,
                         machineInfo: [{
-                            value: stationNum
-                        },
-                            {
-                                value: shelvesUnitNum
+                                value: stationNum
                             },
                             {
-                                value: stationNum * shelvesUnitNum
+                                value: shelveNum
+                            },
+                            {
+                                value: stationNum * 6
                             },
                             {
                                 value: areaWidth * areaHeight
@@ -813,6 +839,10 @@
                     this.setAllOption()
                     this.toggleFloorTabActiveIndex(0)
                     sessionStorage.setItem('isEdit', false)
+                    localStorage.removeItem('modelData')
+                    // this.$router.push({
+                    //     path: '/preview'
+                    // })
                     // this.resetProjectInfo();
                 }
             },
@@ -848,9 +878,14 @@
                 this.handleIsCreateWrapperShow(true);
                 this.sceneOptionShow = false;
                 this.resetProjectInfo();
-                this.projectName = '新建项目';
+                if(sessionStorage.getItem('isEdit') === 'true') {
+                    let projectData = JSON.parse(sessionStorage.getItem('projectData'))
+                    this.projectName = projectData.projectName
+                } else {
+                    this.projectName = '新建项目';
+                }
                 this.areaTipShow = false;
-                sessionStorage.setItem('isEdit', false)
+                // sessionStorage.setItem('isEdit', false)
                 // this.setAreaNull();
             },
             projectFocus(index) {
@@ -914,10 +949,14 @@
                     this.basicType.typeActive = true
                     this.editType.typeActive = false
                     this.enterShow = false
+                    this.modelDataF1 = basicData[0]
                 } else if(list.contains('edit')) {
                     this.basicType.typeActive = false
                     this.editType.typeActive = true
                     this.enterShow = true
+                    if(localStorage.getItem('modelData') !== null) {
+                        this.modelDataF1 = JSON.parse(localStorage.getItem('modelData'))[0]
+                    }
                 }
             },
             /**
@@ -931,20 +970,52 @@
             },
             basicF2ClickEvent(event) {
                 let list = event.target.classList
-                this.setTypeFalse()
-                if(list.contains('basic')) {
+                if (list.contains('basic')) {
+                    this.setTypeFalse()
                     this.basicF2Type.typeActive = true
                     this.enterF2Show = false
-                } else if(list.contains('has')) {
+                    // this.modelData = [basicData[0], basicData[0]]
+                    this.modelDataF2 = basicData[0]
+                } else if (list.contains('has') && !this.hasType.disabled) {
+                    this.setTypeFalse()
                     this.hasType.typeActive = true
                     this.enterF2Show = false
+                    if (localStorage.getItem('modelData') !== null) {
+                        // this.modelData.push(JSON.parse(localStorage.getItem('modelData')))
+                        console.log('this model data', this.modelData)
+                        let data = JSON.parse(localStorage.getItem('modelData'))
+                        this.modelDataF2 = data[0]
+                        console.log('this.modelDataF2', this.modelDataF2)
+                    } else {
+                        this.modelDataF2 = basicData[0]
+                    }
                 } else if(list.contains('edit')) {
+                    this.setTypeFalse()
                     this.editF2Type.typeActive = true
                     this.enterF2Show = true
+                    if(localStorage.getItem('modelData') !== null) {
+                        this.modelDataF2 = JSON.parse(localStorage.getItem('modelData'))[0]
+                    }
                 }
             },
             // 进入 2d 编辑器页面的点击事件
             enterEdit2d(index) {
+                let stationNum = []
+                let numF1 = this.sceneOption[0].stationNum
+                let numF2 = this.sceneOption.length > 1 ? this.sceneOption[1].stationNum : 4
+                if (numF1 == '') {
+                    numF1 = 4
+                    this.sceneOption[0].stationNum = 4
+                }
+                if (numF2 == '') {
+                    numF2 = 4
+                    this.sceneOption[1].stationNum = 4
+                }
+                if (index == 1) {
+                    stationNum.push(numF1)
+                } else if (index == 2) {
+                    stationNum = [numF1.stationNum, numF2]
+                }
                 let projectData = {
                     projectName: this.projectName,
                     areaInfo: [{
@@ -960,11 +1031,35 @@
                             height: parseInt(this.usedAreaHeight),
                         }
                     },],
+                    machineInfo: [{
+                        value: numF1
+                    },
+                        {
+                            value: this.sceneOption[0].shelvesUnitNum
+                        },
+                        {
+                            value: numF1 * this.sceneOption[0].shelvesUnitNum
+                        },
+                        {
+                            value: this.areaWidth * this.areaHeight
+                        },
+                    ],
                     whalehouseID: this.whalehouseID,
                     requestUrl: this.requestUrl,
+                    sceneOption: this.sceneOption,
+                    floorNum: this.sceneOption.length,
+                    stationNum: stationNum,
+                    floorTabActiveIndex: this.floorTabActiveIndex,
+                    type: {
+                        basicType: this.basicType.typeActive,
+                        editType: this.editType.typeActive,
+                        basicF2Type: this.basicF2Type.typeActive,
+                        hasType: this.hasType.typeActive,
+                        editF2Type: this.editF2Type.typeActive,
+                    }
                 }
                 sessionStorage.setItem('projectData', JSON.stringify(projectData))
-
+                sessionStorage.setItem('fromIndex', 'true')
                 this.$router.push({
                     path: '/edit2d',
                     query: { index },
@@ -1003,10 +1098,10 @@
             if(sessionStorage.getItem('isEdit') === 'true') {
                 if(sessionStorage.getItem('projectData')) {
                     this.sceneOptionShow = true
-                    this.enterShow = true
-                    this.basicType.typeActive = false
-                    this.editType.typeActive = true
                     let projectData = JSON.parse(sessionStorage.getItem('projectData'))
+                    this.basicType.typeActive = projectData.type.basicType
+                    this.editType.typeActive = projectData.type.editType
+                    this.enterShow = projectData.type.editType
                     this.projectName = projectData.projectName
                     this.requestUrl = projectData.requestUrl
                     this.whalehouseID = projectData.whalehouseID
@@ -1014,6 +1109,31 @@
                     this.areaHeight = projectData.areaInfo[0].value.height
                     this.usedAreaWidth = projectData.areaInfo[1].value.width
                     this.usedAreaHeight = projectData.areaInfo[1].value.height
+                    this.floorTabActiveIndex = projectData.floorTabActiveIndex
+                    if (this.floorTabActiveIndex == 0) {
+                        let data = JSON.parse(localStorage.getItem('modelData'))
+                        this.modelDataF1 = data
+                    } else if (this.floorTabActiveIndex == 1) {
+                        let data = JSON.parse(localStorage.getItem('modelData'))
+                        this.modelDataF2 = data
+                    }
+                    if (projectData.floorNum == 2) {
+                        this.sceneOption.push({
+                            stationNum: '',
+                            shelvesUnitNum: '',
+                            id: 'P-PMS02'
+                        })
+                        this.basicF2Type.typeActive = projectData.type.basicF2Type
+                        this.hasType.typeActive = projectData.type.hasType
+                        this.editF2Type.typeActive = projectData.type.editF2Type
+                        this.enterShow = projectData.type.editF2Type
+                    }
+                    if (localStorage.getItem('modelData') !== null) {
+                        this.modelData = JSON.parse(localStorage.getItem('modelData'))
+                        this.hasType.disabled = false
+                    } else {
+                        this.hasType.disabled = true
+                    }
                 }
             }
         },
@@ -1062,6 +1182,8 @@
             height: 2vw;
             padding: 0.4vw;
             background: url('~@/assets/scene/myProject.png');
+            background-size: cover;
+            background-repeat: no-repeat;
 
             .addProject {
                 cursor: pointer;
@@ -1548,7 +1670,9 @@
                     width: 73%;
                     border-bottom: 0;
                 }
-
+                .floor-input {
+                    cursor: pointer;
+                }
                 div.tab,
                 span {
                     cursor: pointer;
@@ -1711,19 +1835,27 @@
                     /*display: flex;*/
                     /*white-space: nowrap;*/
                     width: 8vw;
+
                     .type {
                         font-size: 0.8vw;
                         cursor: pointer;
                     }
+
                     .typeActive {
                         border-bottom: 0.1vw solid #ab741c;
                         color: white;
                     }
+
+                    .disabled {
+                        cursor: not-allowed;
+                    }
+
                     .enter2d {
                         color: #ffac29;
                         padding-left: 0.7vw;
                         cursor: pointer;
                     }
+
                     /*flex-wrap: nowrap;*/
                     .text {
                         // margin-bottom: 1vw;

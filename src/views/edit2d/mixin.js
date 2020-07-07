@@ -1,4 +1,4 @@
-import { mapGetters, mapMutations } from 'vuex';
+import {mapGetters, mapMutations, mapState} from 'vuex';
 export default {
     data() {
         return {
@@ -13,7 +13,8 @@ export default {
             offsetY: 0, // 鼠标按下的位置到盒子上边的距离
             moveLeft: 0, // 移动鼠标到body的左边距离
             moveTop: 0, // 移动鼠标到body的上边距离
-            thisDom: null
+            thisDom: null,
+            componentId: '',
         }
     },
     props: {
@@ -30,13 +31,24 @@ export default {
             setZIndex: 'setZIndex',
             setTrackPos: 'setTrackPos',
         }),
+        // 设置 borderStyle
+        setBorderStyle(width, height, left, top) {
+            this.$parent.borderStyle = {
+                width: width,
+                height: height,
+                top: top + 'px',
+                left: left + 'px',
+            }
+        },
         // 设置父组件的值
-        setParentValue(name, spaceShow=true, numShow=true) {
+        setParentValue(name, dom, spaceShow = true, numShow = true) {
             // 显示属性框
             this.$parent.posContent.none = false
             this.$parent.selectedIndex = this.index
+            this.$parent.selectedId = this.componentId
+            console.log('this.$parent.selectedId', this.$parent.selectedId, this.componentId, this.$parent.clickIndex, this.index)
             this.$parent.elementName = name
-            this.$parent.selectedElement = this.dom
+            this.$parent.selectedElement = dom
             this.$parent.numShow = numShow
             this.$parent.spaceShow = spaceShow
             this.$parent.setAllValue()
@@ -45,6 +57,7 @@ export default {
             window.onmousemove = ''
             this.mouseX = 0
             this.mouseY = 0
+            this.$parent.updated()
                 // event.target.style.cursor = 'default';
 
             // this.setTrackPos({
@@ -70,16 +83,23 @@ export default {
                 return this.getParentTag(dom.offsetParent);
             }
         },
-        moveClac(thisDom) {
+        moveClac(thisDom, width, height) {
             this.moveLeft = event.clientX;
             this.moveTop = event.clientY;
+            // console.log('event.clientX', event.clientX, event.clientY)
             // 左边限制
-            if (this.moveLeft - this.offsetX <= this.offsetParentLeft) {
-                this.moveLeft = this.offsetParentLeft + this.offsetX;
+            if (this.moveLeft - this.offsetX <= this.offsetParentLeft + this.$parent.ruleWidth) {
+                this.moveLeft = this.offsetParentLeft + this.offsetX + this.$parent.ruleWidth;
+            }
+            if (this.moveLeft < 300) {
+                window.onmousemove = ''
+            }
+            if (this.moveTop < 145) {
+                window.onmousemove = ''
             }
             // 上边限制
-            if (this.moveTop - this.offsetY <= this.offsetParentTop) {
-                this.moveTop = this.offsetParentTop + this.offsetY;
+            if (this.moveTop - this.offsetY <= this.offsetParentTop + this.$parent.ruleWidth) {
+                this.moveTop = this.offsetParentTop + this.offsetY + this.$parent.ruleWidth;
             }
             // // 右边限制
             // if(this.offsetParentLeft+this.dom.offsetParent.offsetWidth <= this.moveLeft+(this.domWidth-this.offsetX)) {
@@ -93,6 +113,7 @@ export default {
 
             thisDom.style.left = this.moveLeft - this.offsetParentLeft - this.offsetX + "px";
             thisDom.style.top = this.moveTop - this.offsetParentTop - this.offsetY + "px";
+            // this.setBorderStyle(width, height, this.moveLeft - this.offsetParentLeft - this.offsetX - 2, this.moveTop - this.offsetParentTop - this.offsetY)
 
         },
         borderBox(oDiv) {
@@ -168,12 +189,21 @@ export default {
         }
     },
     created() {
-        console.log('Model名称为: item', this.generateModelName)
-        console.log('（（（（（（（（', this.item)
+        this.componentId = this.item.id
+        // console.log('item mmmmmmmm', this.item.id)
+        // console.log('Model名称为: item', this.generateModelName)
+        // console.log('（（（（（（（（', this.item)
+    },
+    mounted() {
+
     },
     computed: {
+        ...mapState('edit', {
+            modelOptions: 'modelOptions',
+        }),
         ...mapGetters('edit', {
             getZIndex: 'getZIndex',
+            getModelOption: 'getModelOption',
 
         }),
         // zIndex() {

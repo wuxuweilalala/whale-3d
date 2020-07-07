@@ -21,7 +21,8 @@
             animateData: {},
             pickFinish: {},
             index: Number,
-
+            modelData: Object,
+            hasProjectData: Boolean,
         },
         computed: {
             ...mapGetters('mould', {
@@ -33,6 +34,7 @@
                 playState: 'getplayState',
                 progressTime: 'getProgressTime',//运动总时长
                 getHasSku: 'getHasSku',
+                getHasData: 'getHasData',
             }),
 
         },
@@ -54,6 +56,20 @@
                 runPoint: [],//停止运动位置标识
                 obstructBox: [],//障碍箱
                 psbTimer: {},//存放psb定时器
+                geometry: null,
+                wallBox: null,
+                padding: 18.75,
+                shelvesWidth: 0, // 货架的宽度
+                scenes: null,   // 场景
+                firstBox: null,     // 第一个模型
+                currentX: -1,
+                shelveArr: [],
+                boxsGroup: null,
+                lastX: -1,  // 上一个x
+                lastName: '',
+                psbWidth: 0,
+                loadModel: false,
+
             };
         },
 
@@ -65,75 +81,51 @@
                 this.station.position = this.options.stationSite;
                 this.wallgroup = new this.$THREE.Group();//播种墙、播种板
                 this.robotTeam = new this.$THREE.Group();//货车与机器人组
-                this.psbRobot = new this.$THREE.Group();
                 this.station.add(this.wallgroup);
                 this.station.add(this.robotTeam);
-                this.station.add(this.psbRobot);
                 this.$parent.scene.add(this.station);
-
             },
-            // 加载模型
-            loadShelves(shelvesPadding = 18.75) {
-                let self = this;
-                const loader = new GLTFLoader();
-                let length = self.options.shelvesNum;
-                let obj = this.getMould.shelves;
+            // 加载 psb 需要货架的盒模型
+            addPsb(psbLen) {
+                let self = this
                 let psb = this.getMould.psb;
-                let geometry = new self.$THREE.BufferGeometry();
-                let positions = new Float32Array(2 * 3);
-                geometry.setDrawRange(0, 2);
-                geometry.addAttribute('position', new self.$THREE.BufferAttribute(positions, 3));
-                //加载货架
-                self.shelves = new self.$THREE.Box3();
-                obj.scale.set(0.05, 0.05, 0.05);
-                self.shelves.expandByObject(obj);
-                let shelves_width = self.shelves.max.x - self.shelves.min.x;
-                let x_space = 0;
-                for (let i = 0; i < length + 1; i++) {
-                    let gltf = obj.clone();
-                    gltf.name = `shelves${this.index}-${i}`;
-                    gltf.position.x = x_space - shelves_width * i;
-                    // gltf.children[0].traverse((obj) => {
-                    //     if (obj.isMesh) {
-                    //         // this.$parent.clickRobots.push(obj)
-                    //     }
-                    // });
-                    let children = gltf.children;
-                    // console.log('children', children)
-                    // for (let j = 0; j < children.length; j++) {
-                    //     self.$parent.clickRobots.push(children[i])
-                    // }
-                    // console.log('self.$parent.clickRobots *****', self.$parent.clickRobots)
-                    self.station.add(gltf);
-                    x_space -= shelvesPadding;  //货架之间的默认间距为375mm*0.05=18.75
-                    self.shelves.expandByObject(gltf);
-
-                }
-
-                self.initModules(); //获取货架宽度后加载其他模型
-                //加载货架中机器人
-                /*
-                * */
-                // loader.load(process.env.BASE_URL +'mould/psb/psb.gltf', (up) => {
                 let site = new self.$THREE.Box3();
                 psb.scale.set(0.05, 0.05, 0.05);
                 site.expandByObject(psb);
                 let psbWidth = site.max.z - site.min.z;
-                let initZSpace = (self.shelves.max.z - self.shelves.min.z - 20 - psbWidth * 6) / 7;
+                this.psbWidth = psbWidth
+                let initZSpace = (self.firstBox.max.z - self.firstBox.min.z - 20 - psbWidth * 6) / 7;
                 let padding = (31.96 - psbWidth) / 2; //轨道宽度31.96求机器人边距
                 let addZSpace = 0;
-                for (let i = 0; i < 6; i++) {
+                // let psbF1Len = this.$parent.modelData[0].psb.length
+                // let psbF2Len = this.$parent.modelData[0].psb.length
+
+                let robotBox = new this.$THREE.Box3()
+                // let robotGroupF1 = new self.$THREE.Group();
+                // let robotGroupF2 = new self.$THREE.Group();
+                // robotGroupF1.name = 'robot-group-f1'
+                // robotGroupF2.name = 'robot-group-f2'
+                // self.psbRobot.add(robotGroupF1)
+                // self.psbRobot.add(robotGroupF2)
+                // this.psbRobot = new this.$THREE.Group();
+                this.psbRobot = new this.$THREE.Group();
+                this.psbRobot.name = `psb-group-${this.index}`
+
+                for (let i = 0; i < psbLen; i++) {
                     let robot = psb.clone();
                     let group = new self.$THREE.Group();
                     // robot.scale.set(0.05, 0.05, 0.05);
-                    robot.name = `PSB${i}`;
+                    robot.name = `PSB-F1-${i}`;
                     robot.state = true;
+                    robotBox.expandByObject(robot)
+                    let robotWidth = robotBox.max.x - robotBox.min.x
                     robot.position.z = -(psbWidth * i + addZSpace);
+                    robot.position.x = 0;
                     addZSpace += initZSpace;
                     addZSpace += padding;
-                    // self.$parent.clickRobots = robot.children[0].children[0].children
-                    self.psbRobot.add(robot);
-                    // self.$parent.clickRobots.push(robot.children[1]);
+                    // console.log('self.psbRobot', this.psbRobot.name, this.index, i)
+                    this.psbRobot.add(robot);
+                    // console.log('self', this.psbRobot)
                     robot.children[0].children[0].parent = robot;
                     group.parent = robot;
                     group.name = `claw${i}`;
@@ -159,169 +151,76 @@
                         // let linesCopy = lineMesh.clone();
                         points.push(new self.$THREE.Vector3(lineArray[j][0], lineArray[j][1], lineArray[j][2]));
                         points.push(new self.$THREE.Vector3(lineArray[j][0], lineArray[j][1], lineArray[j][2]));
-                        let lines = geometry.clone().setFromPoints(points);
+                        let lines = this.geometry.clone().setFromPoints(points);
                         let lineMesh = new self.$THREE.Line(lines, material);
                         robot.add(lineMesh);
                     }
-                    self.psbRobot.position.x -= 0.5;
+                    this.psbRobot.position.x = this.firstBox.min.x - robotWidth;
+                    this.psbRobot.position.y = 0
                     let cs = robot.children[1].children[0].children
                     self.$parent.clickRobots.push(cs[16])
                 }
-
-                self.$parent.addRobot();
+                this.station.add(this.psbRobot);
             },
-            //添加货箱
-            addBox() {
-                let self = this;
-                let box = self.getMould.box;
-                // 加载货箱
-                /*
-                高度: 150mm*0.05=7.5
-                宽度: 639mm*0.05=31.95
-                长度: 5370mm*0.05=268.5
-                 * */
-                box.scale.set(0.05, 0.05, 0.05);
-                let trackBox = new self.$THREE.Box3();
-                trackBox.expandByObject(box);
-                // console.log('box size',trackBox.max.z-trackBox.min.z,trackBox.max.x-trackBox.min.x,trackBox.max.y-trackBox.min.y);
-                /*
-                    X:380.82mm*0.05   19
-                    Y:634.701mm   31.7
-                    Z:380.821mm  19
-                    间距 150mm    7.5
-                    * */
-                // let x = this.options.shelvesNum, y = 7, z = 6;
-                /*
-                    x_space:9.5+4 货箱宽度的一半+padding --X方向间距
-                    z_space:每行货箱的间距为150mm*0.05=7.5
-                    * */
-                let x_space = 13.5, z_space = 7.5;
+            /**
+             * 获取 第一个和最后一个 的盒模型
+             * i 是 modelData动画数据数组下标
+             */
+            getModelObj(i) {
+                let modelData = this.$parent.modelData
+                let shelvesData = modelData[i].shelve
+                let firstObj = {}
+                let lastObj = {}
 
-                // shelves_site.max.z -= 10;//z方向减去货架自身宽度
-                let list = this.box;
-
-                for (let i in list) {
-                    if (self.station.children.find(ele => ele.name == list[i][3])) continue;
-                    let gltf = box.clone();
-                    gltf.material = box.material.clone();
-                    gltf.material.transparent = true;//是否透明
-                    gltf.geometry.center();//模型中心点居中
-                    // console.log('gltf, gltf.geometry', gltf, gltf.geometry)
-                    // gltf.material.opacity = 0.7;
-                    gltf.material.transparent = true;//是否透明
-                    gltf.siteZ = list[i][2];
-                    gltf.name = list[i][3]; //行列层
-                    let site = self.addCargos(list[i], x_space, z_space, self.shelves);
-                    gltf.position.set(site[0], site[1], site[2]);
-                    self.station.add(gltf);
+                for (let i = 0; i < shelvesData.length; i++) {
+                    let model = shelvesData[i]
+                    let name = model.name
+                    if(name === 'shelve') {
+                        firstObj = model
+                        break
+                    } else if(name === 'station') {
+                        firstObj = model
+                        break
+                    }
+                }
+                for (let j = shelvesData.length - 1; j > 0; j--) {
+                    let model = shelvesData[j]
+                    let name = model.name
+                    let num = model.num
+                    if(name === 'shelve') {
+                        lastObj = model
+                        break
+                    } else if(name === 'station') {
+                        lastObj = model
+                        break
+                    }
+                }
+                return {
+                    firstObj,
+                    lastObj,
                 }
             },
-            addCargos(site, x_space, z_space, shelves_site) {
-                let x, y, z;
-                if (site[0] == 2) {
-                    // debugger
-                    let length = this.options.shelvesNum;
-                    let shevlesFirstBox = this.getBox(`shelves0-${length}`)
-                    this.$parent.shelvesHeight = shevlesFirstBox.max.y - shevlesFirstBox.min.y
-                    let stationFirstBox = this.getBox('wallGroup0-0')
-                    x = shevlesFirstBox.max.x - stationFirstBox.max.x + 19.041 + 26.8559
-                } else {
-                    x = shelves_site.max.x - (19.041 + 26.8559) * (site[0] - 27) - x_space;  //19.0419为货箱的宽度  26.8559:货架间距18.75+padding 8.1059
-                }
-                y = 15 + 19 * site[1] - 1;
-                z = shelves_site.max.z - 10 - 31.7 * (site[2] - 1) - z_space * site[2] - 31.7 / 2;   //31.7为货箱Z方向的长度
-                // z = shelves_site.max.z
-                return [x, y, z];
-            },
-            //初始化加载模型
-            initModules() {
-                //机器人轨道
+            /**
+             * 添加轨道
+             * i 是 modelData动画数据数组下标
+             */
+            addTrack(i) {
                 const loader = new GLTFLoader();
-                let self = this;
-                let shelves_site = self.shelves;
-                let shelvestrack = self.getMould.shelvestrack;
-                // let car = this.getMould.car.clone();
-                let platform = self.getMould.platform;
-                let sowwall = self.getMould.sowwall;
-                let length = parseInt(this.options.shelvesNum);
-                for (let i in shelvestrack.children) {
-                    shelvestrack.children[i].material.transparent = true;//是否透明
-                    shelvestrack.children[i].material.opacity = 0.5;
+                let self = this
+                let modelObj = this.getModelObj(i)
+                let firstName = modelObj.firstObj.name
+                let lastName = modelObj.lastObj.name
+                let firstX = modelObj.firstObj.x
+                let lastX = modelObj.lastObj.x + modelObj.lastObj.num - 1
+                let index = 0
+                if (i == 1) {
+                    index = this.index
                 }
-                let trackBox = new self.$THREE.Box3();
-                trackBox.expandByObject(shelvestrack);
-                let trackLength = (trackBox.max.x - trackBox.min.x) * 0.05;
-                let trackWidth = (trackBox.max.z - trackBox.min.z) * 0.05;
-                let shelvesWidth = shelves_site.max.z - shelves_site.min.z;
-                let initZSpace = (shelvesWidth - 20 - trackWidth * 6) / 7; //20位货架两边大小
-                let addinitZSpace = 0;
-
-                //播种板
-                //播种墙
-                for (let i in sowwall.children) {
-                    // sowwall.children[i].material.transparent = true;//是否透明
-                    // sowwall.children[i].material.opacity = 0.5;
-                }
-                self.wallgroup.name = 'allWallGroup';
-                let x = 0;
-                let stationLength = 4
-                for (let j = 0; j < stationLength; j++) {
-                    var wallgroup = new this.$THREE.Group();//播种墙、播种板
-                    self.wallgroup.add(wallgroup);
-                    wallgroup.name = `wallGroup${this.index}-${j}`;
-                    let platwall = sowwall.clone();
-                    platwall.scale.set(0.05, 0.05, 0.05);
-                    let wall = new self.$THREE.Box3();
-                    wall.expandByObject(platwall);
-                    let sowwallWidth = wall.max.x - wall.min.x;
-                    let sowwallSpace = 32.7;//站台间距
-                    platwall.name = 'sowWall';
-                    wallgroup.add(platwall); //把站台架加入组中
-                    // wallgroup.position.x = (sowwallWidth + 32.7) * j;
-                    for (let i in platform.children) {
-                        // platform.children[i].material.transparent = true;//是否透明
-                        // platform.children[i].material.opacity = 0.5;
-                    }
-                    let plat_group = new self.$THREE.Group();//播种板
-                    plat_group.name = 'boardteam';
-                    platform.scale.set(0.05, 0.05, 0.05);
-                    let seedBoard = new self.$THREE.Box3();
-                    seedBoard.expandByObject(platform);
-                    let width = seedBoard.max.x - seedBoard.min.x;//单个播种板的宽度
-                    let wallWidth = (shelves_site.max.z - shelves_site.min.z - 20 - width * 6) / 7; //播种板间距
-                    let platformz_space = width / 2 + wallWidth;
-                    for (let i = 0; i < 6; i++) {
-                        let platCopy = platform.clone();
-                        plat_group.add(platCopy);
-                        platCopy.name = `board${i}`;
-                        // let a=new self.$THREE.AxesHelper(8000);
-                        // platCopy.add(a)
-                        platCopy.position.x = wall.max.x - width / 2;  //播种板X位置等于播种墙位置-播种板宽度一半
-                        platCopy.position.y = 67;
-                        platCopy.position.z = shelves_site.max.z - 10 - width * i - platformz_space;
-                        platformz_space += wallWidth;
-                        self.seedBoard = new self.$THREE.Box3();
-                        self.seedBoard.expandByObject(platCopy); //存储站台板的位置
-                    }
-                    wallgroup.add(plat_group); //播种板、播种墙同一组
-                    wallgroup.position.x = x;
-                    if (j % 2 == 1) {
-                        x = x + 50
-                    } else {
-                        x = x + 200
-                    }
-                }
-                let len = self.options.shelvesNum;
-                let scenes = self.$parent.scene
-                // 获取 wallGroup3 最后一个shelves 第一个shelves
-                let shelvesPosition = scenes.getObjectByName(`shelves${this.index}-${len}`)
-                let wallPosition = scenes.getObjectByName(`wallGroup0-3`)
-                let wallBox = new self.$THREE.Box3();
-                wallBox.expandByObject(wallPosition);
-                let shelvesBox = new self.$THREE.Box3();
-                shelvesBox.expandByObject(shelvesPosition);
-                let shelvesOneWidth = shelvesBox.max.x - shelvesBox.min.x + 18.75
-                shelvesPosition.position.x = wallBox.max.x + shelvesOneWidth
+                let first = this.getBox(`${firstName}${index}-${firstX}`)
+                let last = this.getBox(`${lastName}${index}-${lastX}`)
+                this.firstBox = first
+                let width = first.max.x - last.min.x
+                let deep = first.max.y - first.min.y
                 loader.load(process.env.BASE_URL + 'mould/cargd.gltf', (obj) => {
                     let gltf = obj.scene;
                     gltf.traverse((obj) => {
@@ -338,67 +237,295 @@
                             // obj.material.color.set(0xc25858);
                         }
                     })
-                    let WalltrackBox = new self.$THREE.Box3();
-                    WalltrackBox.expandByObject(gltf);
-                    let trackGroup = new self.$THREE.Group();
                     let trackBox = new self.$THREE.Box3();
                     trackBox.expandByObject(gltf);
-                    let trackWidth = (trackBox.max.z - trackBox.min.z) * 0.05;
-                    let trackHeight = trackBox.max.y - trackBox.min.y
+                    let boxWidth = trackBox.max.x - trackBox.min.x
+                    let trackGroup = new self.$THREE.Group();
                     gltf.rotateY(Math.PI)
                     for (let j = 0; j < 6; j++) {
-                        let sowwallSpace = 0;
-
                         let walltrack = gltf.clone();
+                        // for (let i in walltrack.children) {
+                        // walltrack.children[i].material.transparent = true;//是否透明
+                        // walltrack.children[i].material.opacity = 0.5;
+                        // }
 
-                        for (let i in walltrack.children) {
-                            // walltrack.children[i].material.transparent = true;//是否透明
-                            // walltrack.children[i].material.opacity = 0.5;
-                        }
-                        // 获取 场景 scene
-                        let scenes = self.$parent.scene
-                        // 获取 wallGroup3 最后一个shelves 第一个shelves
-                        let wallPosition = scenes.getObjectByName(`wallGroup0-3`)
-                        let shelvesPosition = scenes.getObjectByName('shelves0-' + (self.options.shelvesNum - 1))
-                        let shelvesFirst = scenes.getObjectByName('shelves0-0')
-                        // 获取 wallGroup3 最后一个shelves 第一个shelves 的盒子大小
-                        let wallBox = new self.$THREE.Box3();
-                        wallBox.expandByObject(wallPosition);
-                        let shelvewBox = new self.$THREE.Box3();
-                        shelvewBox.expandByObject(shelvesPosition);
-                        let shelvesFirstBox = new self.$THREE.Box3();
-                        shelvesFirstBox.expandByObject(shelvesFirst);
-                        //  获取 播种墙到货架的长度（x的值）
-                        let width = wallBox.max.x - shelvewBox.min.x + shelvesOneWidth
-                        // 获取 轨道的长度（x的值）
-                        let boxWidth = WalltrackBox.max.x - WalltrackBox.min.x
-                        var axesHelper = new self.$THREE.AxesHelper(1500);
                         walltrack.scale.set(width / boxWidth, 0.05, 0.05);
 
-                        trackGroup.position.x = wallBox.max.x - shelvesFirstBox.max.x + shelvesOneWidth;
-                        walltrack.position.z = -(trackWidth * j + addinitZSpace);
-                        trackGroup.position.z = -3.5 * j;
-                        trackGroup.position.y = wallBox.max.y - 10
                         trackGroup.add(walltrack);
-                        self.station.add(trackGroup);
-                        addinitZSpace += initZSpace;
+                        walltrack.position.z = -41 * j;
+
                     }
+                    trackGroup.position.x = first.max.x;
+                    trackGroup.position.z = -18;
+                    trackGroup.position.y = deep - 12
+                    self.station.add(trackGroup);
                 });
+            },
+            /**
+             * 加载一个工作站
+             *  name 是工作站的名字
+             *  x 是工作站当前的 x 坐标
+             */
+            addStationGroup(name, x) {
+                let self = this
+                let platform = self.getMould.platform;
+                let sowwall = self.getMould.sowwall;
+
+                let shelves_site = self.shelves;
+                self.wallgroup.name = 'allWallGroup';
+                var wallgroup = new this.$THREE.Group();//播种墙、播种板
+                self.wallgroup.add(wallgroup);
+                wallgroup.name = name;
+                let platwall = sowwall.clone();
+                platwall.scale.set(0.05, 0.05, 0.05);
+                let wall = new self.$THREE.Box3();
+                wall.expandByObject(platwall);
+                let sowwallWidth = wall.max.x - wall.min.x;
+                let sowwallSpace = 32.7;//站台间距
+                platwall.name = 'sowWall';
+                wallgroup.add(platwall); //把站台架加入组中
+                // wallgroup.position.x = (sowwallWidth + 32.7) * j;
+                let plat_group = new self.$THREE.Group();//播种板
+                plat_group.name = 'boardteam';
+                platform.scale.set(0.05, 0.05, 0.05);
+                let seedBoard = new self.$THREE.Box3();
+                seedBoard.expandByObject(platform);
+                let width = seedBoard.max.x - seedBoard.min.x;//单个播种板的宽度
+                let wallWidth = (shelves_site.max.z - shelves_site.min.z - 20 - width * 6) / 7; //播种板间距
+                let platformz_space = width / 2 + wallWidth;
+                for (let i = 0; i < 6; i++) {
+                    let platCopy = platform.clone();
+                    plat_group.add(platCopy);
+                    platCopy.name = `board${i}`;
+                    // let a=new self.$THREE.AxesHelper(8000);
+                    // platCopy.add(a)
+                    platCopy.position.x = wall.max.x - width / 2;  //播种板X位置等于播种墙位置-播种板宽度一半
+                    platCopy.position.y = 67;
+                    platCopy.position.z = shelves_site.max.z - 10 - width * i - platformz_space;
+                    platformz_space += wallWidth;
+                    self.seedBoard = new self.$THREE.Box3();
+                    self.seedBoard.expandByObject(platCopy); //存储站台板的位置
+                }
+                wallgroup.add(plat_group); //播种板、播种墙同一组
+
+                this.wallBox = new self.$THREE.Box3();
+                this.wallBox.expandByObject(wallgroup);
+                let staWidth = this.wallBox.max.x - this.wallBox.min.x
+                wallgroup.position.x = x - staWidth;
+
+                return staWidth
+            },
+            /**
+             *  生成货架
+             * shelvesLen 生成货架数量
+             * currentX 第一个货架的x 位置
+             * xPos 命名需要的参数
+              */
+            addShelves(shelvesLen, currentX, xPos) {
+                let self = this
+                let obj = this.getMould.shelves;
+                let x_space = 0;
+                let shelvesPadding = this.padding
+
+                for (let i = 0; i < shelvesLen; i++) {
+                    let gltf = obj.clone();
+                    gltf.name = `shelve${this.index}-${xPos + i}`;
+                    // console.log('gltf name', gltf.name)
+                    gltf.position.x = currentX + x_space - this.shelvesWidth * i;
+                    self.station.add(gltf);
+                    x_space -= shelvesPadding;  //货架之间的默认间距为375mm*0.05=18.75
+                }
+            },
+            // 添加 一层楼的
+            addFloor(shelvesData, peoples) {
+                let currentX = 0
+                let width = this.shelvesWidth
+                let padding = this.padding
+                let k = 0
+                for (let i = 0; i < shelvesData.length; i++) {
+                    let model = shelvesData[i]
+                    let name = model.name
+                    let num = model.num
+                    let x = model.x
+                    let space = model.space
+                    if(name === 'pstWay') {
+                        currentX = currentX - num * (width + padding)
+                    } else if(name === 'station') {
+                        let name = `station${this.index}-${x}`
+                        currentX = currentX - padding
+                        let stationWidth = this.addStationGroup(name, currentX)
+                        currentX = currentX - stationWidth
+                    } else if(name === 'pickWay') {
+                        currentX = currentX - num * (width + padding)
+                    } else if(name === 'shelve') {
+                        this.addShelves(num, currentX, x)
+                        currentX = currentX - num * (width + padding)
+                    }
+                    if(this.index % 2 == 0) {
+                        for (let j = 0; j < peoples.length; j++) {
+                            let pe = peoples[j]
+                            if(pe.x == x) {
+                                let name = `people${this.index}-${j}`
+                                this.$parent.addRobot(currentX, this.station, j, name)
+                                k = k + 1
+                            }
+                        }
+                    }
+                }
+            },
+            // 根据 modelData 数据生成模型
+            addModelFromData() {
+                //机器人轨道
+                let self = this;
+                let shelvestrack = self.getMould.shelvestrack;
+
+                let trackBox = new self.$THREE.Box3();
+                trackBox.expandByObject(shelvestrack);
+                let trackWidth = (trackBox.max.z - trackBox.min.z) * 0.05;
+                // let shelvesWidth = shelves_site.max.z - shelves_site.min.z;
+                // let initZSpace = (shelvesWidth - 20 - trackWidth * 6) / 7; //20位货架两边大小
+                // 货架盒模型
+                let obj = this.getMould.shelves;
+                this.shelves = new self.$THREE.Box3();
+                obj.scale.set(0.05, 0.05, 0.05);
+                this.shelves.expandByObject(obj);
+                this.shelvesWidth = this.shelves.max.x - this.shelves.min.x
+
+                let modelData = this.$parent.modelData
+                let stationNum = this.$parent.sceneOption[0].stationNum
+                let shelvesData = modelData[0].shelve
+                let peoples = modelData[0].peoples
+                let psbLen = modelData[0].psb.length
+                let index = 0
+                if(this.index >= stationNum) {
+                    shelvesData = modelData[1].shelve
+                    peoples = modelData[1].peoples
+                    psbLen = modelData[0].psb.length
+                    index = 1
+                }
+                this.addFloor(shelvesData, peoples)
+                this.addTrack(index)
+                this.addPsb(psbLen)
+            },
+            // 加载模型
+            loadShelves(shelvesPadding = 18.75) {
+                let self = this;
+                const loader = new GLTFLoader();
+                let length = self.options.shelvesNum;
+                // 拿到父组件的场景 scene
+                this.scenes = this.$parent.scene
+
+                this.geometry = new self.$THREE.BufferGeometry();
+                let positions = new Float32Array(2 * 3);
+                this.geometry.setDrawRange(0, 2);
+                this.geometry.addAttribute('position', new self.$THREE.BufferAttribute(positions, 3));
+
+                // let shelves_width = self.shelves.max.x - self.shelves.min.x;
+                this.addModelFromData()
+            },
+            getBoxMax(name) {
+                let obj = this.scenes.getObjectByName(name);
+                if(obj !== undefined) {
+                    let objBox = new this.$THREE.Box3();
+                    objBox.expandByObject(obj);
+                    return [objBox.max.x, objBox.max.z]
+                }
+                return {}
+            },
+            //添加货箱
+            addBox() {
+                // let self = this;
+                let box = this.getMould.box;
+                // 加载货箱
+                /*
+                高度: 150mm*0.05=7.5
+                宽度: 639mm*0.05=31.95
+                长度: 5370mm*0.05=268.5
+                 * */
+                box.scale.set(0.05, 0.05, 0.05);
+                // let trackBox = new self.$THREE.Box3();
+                // trackBox.expandByObject(box);
+                // console.log('box size',trackBox.max.z-trackBox.min.z,trackBox.max.x-trackBox.min.x,trackBox.max.y-trackBox.min.y);
+                /*
+                    X:380.82mm*0.05   19
+                    Y:634.701mm   31.7
+                    Z:380.821mm  19
+                    间距 150mm    7.5
+                    * */
+                // let x = this.options.shelvesNum, y = 7, z = 6;
+                /*
+                    x_space:9.5+4 货箱宽度的一半+padding --X方向间距
+                    z_space:每行货箱的间距为150mm*0.05=7.5
+                    * */
+                let x_space = 13.5, z_space = 7.5;
+                let boxGroup = new this.$THREE.Group()
+                boxGroup.name = 'allBox'
+                this.$parent.scene.add(boxGroup)
+                // shelves_site.max.z -= 10;//z方向减去货架自身宽度
+                let list = this.box;
+                // this.scenes = this.$parent.scene;
+                for (let i in list) {
+                    if (boxGroup.children.find(ele => ele.name == list[i][3])) continue;
+                    let gltf = box.clone();
+                    gltf.material = box.material.clone();
+                    gltf.material.transparent = true;//是否透明
+                    gltf.geometry.center();//模型中心点居中
+                    // console.log('gltf, gltf.geometry', gltf, gltf.geometry)
+                    // gltf.material.opacity = 0.7;
+                    gltf.material.transparent = true;//是否透明
+                    gltf.siteZ = list[i][2];
+                    gltf.name = list[i][3]; //行列层
+
+                    let site = this.addCargos(list[i], x_space, z_space, this.shelves);
+                    if(site.length > 0) {
+                        gltf.position.set(site[0], site[1], site[2]);
+                        boxGroup.add(gltf);
+                    }
+                }
+            },
+            addCargos(site, x_space, z_space, shelves_site) {
+                let x, y, z;
+                // if (site[0] == 2) {
+                //     let shelveBox = this.getModelBox().shelveBox
+                //     let stationBox = this.getModelBox().stationBox
+                //     console.log('shelveBox', shelveBox, stationBox)
+                //     this.$parent.shelvesHeight = shelveBox.max.y - shelveBox.min.y
+                //     // x = shelveBox.max.x - stationBox.max.x + 19.041 + 26.8559
+                //     x = 19.041 + 26.8559
+                // } else {
+                //     x = shelves_site.max.x - (19.041 + 26.8559) * (site[0] - 27) - x_space;  //19.0419为货箱的宽度  26.8559:货架间距18.75+padding 8.1059
+                // }
+                if(site[0] !== this.currentX) {
+                    this.shelveArr = this.getBoxMax(`shelve${this.index}-${site[0]}`)
+                    this.currentX = site[0]
+                }
+                // this.shelve = this.getBoxMax(`shelve0-${site[0]}`)
+                // console.log('shelve', this.shelveArr, `shelve0-${site[0]}`)
+                if(this.shelveArr.length > 0) {
+                    x = this.shelveArr[0] - x_space
+                    // x = shelve.max.x - (19.041 + 26.8559) * (site[0]) - x_space;  //19.0419为货箱的宽度  26.8559:货架间距18.75+padding 8.1059
+                    y = 15 + 19 * site[1] - 1;
+                    z = this.shelveArr[1] - 10 - 31.7 * (site[2] - 1) - z_space * site[2] - 31.7 / 2;   //31.7为货箱Z方向的长度
+                    // z = shelves_site.max.z
+                    // console.log([x, y, z])
+                    return [x, y, z];
+                } else {
+                    return []
+                }
             },
             // 初始化
             init() {
-                let self = this;
-                self.initStation();
-                self.loadShelves();
-                self.addLines(20);
-                this.$parent.addWall = true;
-                self.animate();
+                this.initStation();
+                this.loadShelves();
+                this.addLines(20);
+                this.$parent.createGroundAndFloor()
+                this.animate();
             },
             // 窗口变动触发的方法
             onWindowResize() {
                 let self = this;
                 self.camera.aspect = window.innerWidth / window.innerHeight;
-                self.camera.updateProjectionMatrix();
+                // self.camera.updateProjectionMatrix();
                 self.renderer.setSize(window.innerWidth, window.innerHeight);
             },
             // psbAnimateX(group, params, duration){
@@ -471,62 +598,84 @@
             },
             // 获取模型盒子的方法
             getBox(name) {
-                // debugger
                 let scenes = this.$parent.scene;
                 let obj = scenes.getObjectByName(name);
-                let objBox = new this.$THREE.Box3();
-
-                objBox.expandByObject(obj);
-                return {
-                    max: objBox.max,
-                    min: objBox.min,
+                if(obj !== undefined) {
+                    let objBox = new this.$THREE.Box3();
+                    objBox.expandByObject(obj);
+                    return {
+                        max: objBox.max,
+                        min: objBox.min,
+                    }
                 }
+                return {}
             },
             // 计算工作站的 x 坐标
             // index 表示哪个站台
             calculateStation(index) {
-                console.log('计算 station 位置', index)
-                // 获取 场景 scene
-                // let scenes = this.$parent.scene;
-                // 第一个工作站 的 box 盒子
-                // let stationFirst = scenes.getObjectByName('wallGroup0-0');
-                // let stationFirstBox = new this.$THREE.Box3();
-                // stationFirstBox.expandByObject(stationFirst);
-                let stationBox = this.getBox('wallGroup0-0')
-
-                if (index == -5) {
-                    // debugger
-                    let length = this.options.shelvesNum;
-                    let shevlesFirstBox = this.getBox(`shelves0-${length}`)
-                    // 箱子居中货架的paading(8.1059)
-                    let width = shevlesFirstBox.max.x - stationBox.max.x + 8.1059
-                    return width;
-                } else {
-                    let i = Math.abs(index) - 1
-
-                    let stationIndexBox = this.getBox(`wallGroup0-${i}`);
-                    let width = stationIndexBox.max.x - stationBox.max.x
-                    return width;
+                let stations = this.$parent.stations
+                let model = {}
+                for (let i = 0; i < stations.length; i++) {
+                    let station = stations[i]
+                    if (station.x === -index) {
+                        model = station
+                    }
                 }
-
+                let station = this.getBox(`${model.name}0-${model.x}`)
+                let lastObj = this.getBox(this.lastName)
+                let width = station.max.x - station.min.x
+                let firstObj = this.getModelObj(0).firstObj
+                let first = this.getBox(`${firstObj.name}0-${firstObj.x}`)
+                let firstWidth = first.max.x - station.max.x
+                // console.log('first width', firstWidth)
+                // station.max.x
+                // if(bool) {
+                //     return width
+                // } else {
+                //     return station.max.x
+                // }
+                return -firstWidth - width / 4
             },
             calculatePlace(boxSite, shevlesSpace, wallSpace, direction) { //计算抓箱的位置
                 let targetSite;
-                console.log('boxsite ******', boxSite.x)
-                // debugger
+                // console.log('boxsite ******', boxSite.x, boxSite.y)
+                let x = boxSite.x
                 if (direction == 'x') {
                     //26.8559为货架间距、箱子居中货架的paading(8.1059)、19为箱子的宽度
-                    return targetSite = wallSpace + 19.041 * boxSite.x + (shevlesSpace + 8.1059) * (boxSite.x - 1);
+                    // return targetSite = wallSpace + 19.041 * boxSite.x + (shevlesSpace + 8.1059) * (boxSite.x - 1);
+
+                    let last = this.getBox(`shelve0-${x}`)
+
+                    // let width = psb.position.x - last.position.x
+                    let firstObj = this.getModelObj(0).firstObj
+                    let first = this.getBox(`${firstObj.name}0-${firstObj.x}`)
+                    let firstWidth = first.max.x - first.min.x
+                    let width = first.max.x - last.max.x
+                    // let width = psb.getWorldPosition().x - last.getWorldPosition().x + this.psbWidth + firstWidth
+                    // let width = psb.position.x - last.position.x - firstWidth - this.psbWidth / 2
+
+                    return width + 3
                     // } else if (direction == 'xEnd') {
                     // return targetSite = wallSpace + 19.041 * boxSite.x + (shevlesSpace + 8.1059) * (boxSite.x - 1);
                     // return targetSite = (19.041 + shevlesSpace + 8.1059) * boxSite.x+4.05;  //26.8559为货架间距、箱子居中货架的paading、19为箱子的宽度
                 } else {
-                    return targetSite = 19 * (boxSite.y + 1) + 24.09;//机器人上半部分为9.09箱子Y轴初始位置为15
+                    // debugger
+                    targetSite = 19 * (boxSite.y + 1) + 24.09;//机器人上半部分为9.09箱子Y轴初始位置为15
+
+                    return targetSite
                 }
+            },
+            changeValue(group, array) {
+                if (group.name === '') {
+                    array = [0, 0]
+                }
+                return array
             },
             clawBox(name, start, end, time, index, flag, mark) {
                 let self = this;
-                let order = parseInt(start.z - 1);
+                let order = parseInt(start.z % 6 - 1);
+                let num = parseInt(start.z / 6)
+                self.psbRobot = this.scenes.getObjectByName(`psb-group-${num}`)
                 let psb = self.psbRobot.children[order];//运动机器人
                 let boardTime = null;
                 psb.state = false;//设置正在运动
@@ -537,18 +686,18 @@
                     yStart: start.y,
                     xEnd: end.x,
                     xStart: start.x,
-                    order: start.z - 1
+                    order: order
                 };
                 let box3 = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/box3.jpg');
 
                 // console.log('start', start, end)
                 let duration = self.calculateTime(params);
-                // console.log('duration', duration)
+                // console.log('duration ******* ', duration)
                 let durationCopy = JSON.parse(JSON.stringify(duration));
-
-                let box = self.station.children.find(ele => ele.name == name.containerCode) || self.$parent.scene.children.find(ele => ele.name == name.containerCode) || psb.children[1].children.find(ele => ele.name == name.containerCode);
-                console.log('box', box)
+                let allBox = this.scenes.getObjectByName('allBox')
                 // debugger
+                let box = allBox.children.find(ele => ele.name == name.containerCode) || self.$parent.scene.children.find(ele => ele.name == name.containerCode) || psb.children[1].children.find(ele => ele.name == name.containerCode);
+                // console.log('state **** ', box.state, box)
                 if (box.status == 'scene') {
                     boardTime = durationCopy.grab
                 } else {
@@ -556,6 +705,7 @@
                 }
                 for (let i in self.psbRobot.children) {
                     let boardy = [self.psbRobot.children[i].position.y, -(self.seedBoard.max.y + 8)]; //放箱到播种板动画
+                    boardy = this.changeValue(box, boardy)
                     self.psbRobot.children[i].actions = {
                         board: self.psbAnimateY(self.psbRobot.children[i], boardy, boardTime * 1000 / 2 / self.speedTimes)
                     };
@@ -566,15 +716,18 @@
                     map: texture,
                 });
                 box.material = material
-                let edges = new self.$THREE.EdgesGeometry(box.geometry);
-                // 立方体线框，不显示中间的斜线
-                let edgesMaterial = new self.$THREE.LineBasicMaterial({
-                    color: 0xff7f29,
-                    linewidth: 5,
-                });
-                let lines = new self.$THREE.LineSegments(edges, edgesMaterial);//选中箱子辅助线
-                // box.add(lines);
-
+                // debugger
+                let lines = null
+                if (box.name !== '') {
+                    let edges = new self.$THREE.EdgesGeometry(box.geometry);
+                    // 立方体线框，不显示中间的斜线
+                    let edgesMaterial = new self.$THREE.LineBasicMaterial({
+                        color: 0xff7f29,
+                        linewidth: 5,
+                    });
+                    lines = new self.$THREE.LineSegments(edges, edgesMaterial);//选中箱子辅助线
+                    // box.add(lines);
+                }
                 // 网格模型和网格模型对应的轮廓线框插入到场景中
                 // let outlineMaterial1 = new self.$THREE.MeshBasicMaterial( { color: 0xff0000,wireframe   : true } );
                 // box.material=outlineMaterial1
@@ -585,20 +738,22 @@
                 //11
                 // x的值 4 14 16 26 为站台
                 let xSpace = start.x < 0 ? self.calculateStation(start.x) : self.calculatePlace(start, 18.75, 32.7, 'x');//0--4为站台
-                console.log('Xspace ******', start.x, xSpace)
+                // console.log('Xspace ******', start, xSpace)
 
                 let initial = psb.position.x < xSpace ? -1 : 1;//判断初始抓箱和机器人位置 确定移动方向
-                if (start.x == -5 || start.x == -4 || start.x == -3 || start.x == -1) {
+                if (start.x < 0) {
                     initial = 1
                 } else {
                     initial = -1
                 }
-                // debugger
                 let direction = start.x < end.x ? -1 : 1; //判断初始位置和终点位置 确定方向
                 let ySpace = self.calculatePlace(start, 18.75, 32.7, 'y') - self.shelves.max.y;
-                console.log('ySpace ******', start.x, ySpace)
+                // this.log('::::::::', self.calculatePlace(start, 18.75, 32.7, 'y'))
+                // this.log('|||||||||||', self.shelves.max.y)
+                // this.log('??????????', self.calculatePlace(start, 18.75, 32.7, 'y') - self.shelves.max.y)
+                // console.log('ySpace ******', start.x, ySpace)
                 let xStart = [psb.position.x, xSpace * initial]; //初始为0 ||self.psbRobot.children[order].position.x
-                console.log('[psb.position.x, xSpace * initial] ******', start.x, ySpace, initial)
+                // console.log('[psb.position.x, xSpace * initial] ******', start.x, ySpace, initial)
                 // debugger
                 let yStart;
 
@@ -626,16 +781,18 @@
                         duration.psbTime = durationCopy.psbTime * xprecent;
                     } else {
                         yStart = [psb.position.y, ySpace];
-                        // debugger
                     }
-                    if (start.x < 0 && start.x !== -5) {  //初始是否为站台
+                    this.log('ystart', yStart)
+                    if (start.x < 0) {  //初始是否为站台
                         if (flag == 'amend') {  //是否点击暂停 暂停后取最新机器人位置
                             let boardy = [psb.children[1].position.y, -(self.seedBoard.max.y + 8)];
+                            boardy = this.changeValue(box, boardy)
                             action.fall_rise = self.psbAnimateY(psb, boardy, boardTime * 1000 / 2 / self.speedTimes);
                         } else {
                             action.fall_rise = action.board;
                         }
                     } else {
+                        yStart = this.changeValue(box, yStart)
                         action.fall_rise = self.psbAnimateY(psb, yStart, duration.grab * 1000 / 2 / self.speedTimes);
                     }
                     if (xStart[0] != xStart[1]) {  //判断机器人位置是否和开始抓箱位置是否一致
@@ -649,6 +806,7 @@
                     } else {
                         action.fall_rise.start();
                     }
+
                     action.fall_rise.flag = 'start';
                     action.fall_rise.box = box;
                     action.fall_rise.time = time;
@@ -657,8 +815,10 @@
                         box.scale.set(1, 1, 1);
                         box.status = 'psbGroup';//设置一个状态值
                         psb.children[1].add(box);
+                        let fall_rise = null
                         let y = [psb.children[1].position.y, 0];
-                        let fall_rise = self.psbAnimateY(psb, y, durationCopy.grab * 1000 / 2 / self.speedTimes); //抓箱上升
+                        y = this.changeValue(box, y)
+                        fall_rise = self.psbAnimateY(psb, y, durationCopy.grab * 1000 / 2 / self.speedTimes); //抓箱上升
                         fall_rise.start();
                         fall_rise.flag = 'end';
                         fall_rise.box = box;
@@ -666,16 +826,20 @@
                         fall_rise.onComplete(() => {
                             let rise, xEnd;
                             //11
-                            console.log('end', end.x)
+                            // console.log('end', end.x)
                             if (end.x <= 0) {
                                 xEnd = [psb.position.x, self.calculateStation(end.x)];
+                                // debugger
+                                // console.log('psb.position.x', psb.position.x, self.calculateStation(end.x))
                                 rise = action.board;
                             } else {
                                 let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
                                 let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
                                 xEnd = [psb.position.x, -xEndSpace];
                                 let yEnd = [psb.position.y, yEndSpace];
+                                yEnd = this.changeValue(box, yEnd)
                                 rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
+
                             }
                             let ahead = self.psbAnimateX(psb, xEnd, duration.move * 1000 / self.speedTimes);
                             ahead.flag = 'endx';
@@ -692,13 +856,14 @@
                                 box.status = 'scene'
                                 self.$parent.scene.add(box);
                                 let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                                yUp = this.changeValue(box, yUp)
                                 let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                                 up.start();
                                 // up = self.addIdentity(up, time, box, 'endBoard');
                                 up.flag = 'endBoard';
                                 up.box = box;
                                 up.time = time;
-                                console.log('self.speedTimes', self.speedTimes, duration.set * 1000 / 2 / self.speedTimes);
+                                // console.log('self.speedTimes', self.speedTimes, duration.set * 1000 / 2 / self.speedTimes);
                                 up.onComplete(() => {
                                     psb.state = true;//完成运动
                                     let material = new THREE.MeshLambertMaterial({
@@ -707,7 +872,9 @@
                                     box.material = material;
                                     // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
                                     box.remove(lines);
-                                    self.toRun(end, box, index, order, psb.name)
+                                    if (yUp[0] !== yUp[1]) {
+                                        self.toRun(end, box, index, order, psb.name)
+                                    }
                                 });
                             });
                         });
@@ -716,6 +883,7 @@
                     let y = [psb.children[1].position.y, 0]; //抓取箱子上升
                     let precent = Math.abs(psb.children[1].position.y * 0.05) / Math.abs(ySpace);
                     duration.grab = durationCopy.grab * (precent); //计算点击暂停后开始的剩余时间
+                    y = this.changeValue(box, y)
                     let fall_rise = self.psbAnimateY(psb, y, duration.grab * 1000 / 2 / self.speedTimes); //抓箱上升
                     fall_rise.start();
                     // fall_rise = self.addIdentity(fall_rise, time, box, 'end');
@@ -726,12 +894,14 @@
                         let rise, xEnd;
                         if (end.x <= 0) {
                             xEnd = [psb.position.x, self.calculateStation(end.x)];
+                            // debugger
                             rise = action.board;
                         } else {
                             let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
                             let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
                             xEnd = [psb.position.x, -xEndSpace];
                             let yEnd = [psb.position.y, yEndSpace];
+                            yEnd = this.changeValue(box, yEnd)
                             rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
                         }
                         let ahead = self.psbAnimateX(psb, xEnd, duration.move * 1000 / self.speedTimes);
@@ -751,6 +921,7 @@
                             box.status = 'scene'
                             self.$parent.scene.add(box);
                             let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                            yUp = this.changeValue(box, yUp)
                             let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                             up.start();
                             // up = self.addIdentity(up, time, box, 'endBoard');
@@ -765,7 +936,9 @@
                                 box.material = material;
                                 // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
                                 box.remove(lines);
-                                self.toRun(end, box, index, order, psb.name)
+                                if (yUp[0] !== yUp[1]) {
+                                    self.toRun(end, box, index, order, psb.name)
+                                }
                             });
                         });
                     });
@@ -780,7 +953,9 @@
                         let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
                         let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
                         xEnd = [psb.position.x, -xEndSpace];
+                        // debugger
                         let yEnd = [psb.position.y, yEndSpace];
+                        yEnd = this.changeValue(box, yEnd)
                         rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
                         let precent = Math.abs(psb.position.x) / Math.abs(xEndSpace);
                         duration.move = durationCopy.move * (1 - precent);
@@ -802,6 +977,7 @@
                         box.status = 'scene'
                         self.$parent.scene.add(box);
                         let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                        yUp = this.changeValue(box, yUp)
                         let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                         up.start();
                         // up = self.addIdentity(up, time, box, 'endBoard');
@@ -817,17 +993,21 @@
 
                             // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
                             box.remove(lines);
-                            self.toRun(end, box, index, order, psb.name);
+                            if (yUp[0] !== yUp[1]) {
+                                self.toRun(end, box, index, order, psb.name);
+                            }
                         });
                     });
                 } else if (mark === 'upBoard') {
                     let rise;
                     if (end.x <= 0) {
                         let boardy = [psb.children[1].position.y, -(self.seedBoard.max.y + 8)];
+                        boardy = this.changeValue(box, boardy)
                         rise = self.psbAnimateY(psb, boardy, boardTime * 1000 / 2 / self.speedTimes);
                     } else {
                         let ySpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
                         let yEnd = [psb.children[1].position.y, ySpace];
+                        yEnd = this.changeValue(box, yEnd)
                         rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
                     }
                     // rise = self.addIdentity(rise, time, box, 'upBoard');
@@ -841,6 +1021,7 @@
                         box.status = 'scene';
                         self.$parent.scene.add(box);
                         let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                        yUp = this.changeValue(box, yUp)
                         let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                         up.start();
                         // up = self.addIdentity(up, time, box, 'endBoard');
@@ -855,11 +1036,14 @@
                             box.material = material;
                             // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
                             box.remove(lines);
-                            self.toRun(end, box, index, order, psb.name);
+                            if (yUp[0] !== yUp[1]) {
+                                self.toRun(end, box, index, order, psb.name);
+                            }
                         });
                     });
                 } else if (mark === 'endBoard') {
                     let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                    yUp = this.changeValue(box, yUp)
                     let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                     up.start();
                     // up = self.addIdentity(up, time, box, 'endBoard');
@@ -874,7 +1058,9 @@
                         box.material = material;
                         // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
                         box.remove(lines);
-                        self.toRun(end, box, index, order, psb.name)
+                        if (yUp[0] !== yUp[1]) {
+                            self.toRun(end, box, index, order, psb.name)
+                        }
                     });
                 }
             },
@@ -884,7 +1070,7 @@
                 clearTimeout(self.psbTimer[name])
                 if (end.x <= 0) { //0-4为站台
                     let stationIndex = end.x
-                    console.log('stationIndex stationIndex', stationIndex)
+                    // console.log('stationIndex stationIndex', stationIndex)
                     self.$emit('actionAnimate', {box, index, stationIndex});
                     self.obstructBox[order].forEach(e => {
                         let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/box3.jpg');
@@ -898,7 +1084,7 @@
                     for (let i in self.waitData) {
                         let news = self.waitData;
                         // console.log('news', news)
-                        let index = parseInt(news[i].startPoint.z - 1);
+                        let index = parseInt(news[i].startPoint.z % 6 - 1);
                         let robot = self.psbRobot.children[index];//运动机器人
                         if (robot.state) {
                             self.clawBox(news[i], news[i].startPoint, news[i].endPoint, news[i].startTime, news[i].index);
@@ -915,11 +1101,15 @@
             calculateTime(params) {
                 let grab = 21 - params.yStart;  //抓箱时间 //第一层为21(y为0)，逐层减一
                 let set = 24 - params.yEnd;  //放箱时间
+                if (params.containerCode === '') {
+                    grab = 0;
+                    set = 0;
+                }
                 // let move= Math.round((params.xEnd-params.xStart)*0.245+7 ) //移动时间
                 let move = params.xEnd - params.xStart;  //计算psb移动时间
                 move = ~~(Math.abs(move) * 0.245 + 7 + 0.5);
                 let psbInitial = this.psbRobot.children[params.order].position.x;
-                let psbStart = (psbInitial - 32.7) / (18.75 + 27.147); //货架间距18.75+货架宽度27.14
+                let psbStart = (psbInitial - 32.7) / (this.padding + this.shelvesWidth); //货架间距18.75+货架宽度27.14
                 // let psbTime = ~~((Math.abs(psbStart) - start.x) * 0.245 + 7 + 0.5) * 1000;  //计算psb移动到初始抓箱位置需要的时间
                 let psbTime = psbStart + params.xStart;  //计算psb移动到初始抓箱位置需要的时间
                 psbTime = ~~(Math.abs(psbTime) * 0.245 + 7 + 0.5) * 1000;
@@ -942,8 +1132,6 @@
             //         x, y
             //     };
             // },
-
-
             addLines(size) {
                 var textureTree = new THREE.TextureLoader().load(process.env.BASE_URL + "mould/maps/line.png");
                 var num = 150000;
@@ -988,10 +1176,23 @@
             initState: {
                 handler(news, old) {
                     if (news === 7 || old === 7) {
-                        this.init();
+                        this.init()
                     }
                 },
                 immediate: true,
+            },
+            // hasProjectData: {
+            //     handler(news, old) {
+            //         console.log('asdlfjkksdaf')
+            //         if (news == true) {
+            //             this.init()
+            //         }
+            //     },
+            // },
+            getHasData: {
+                handler(news, old) {
+                    console.log('newasdfafsdf', news, old)
+                }
             },
             waitData: {
                 handler(news) {
@@ -1004,8 +1205,11 @@
                     if (JSON.stringify(news) !== '{}') {
                         this.$parent.loading = false
                         for (let i in news) {
-                            let order = parseInt(news[i].startPoint.z - 1);
+                            let order = parseInt(news[i].startPoint.z % 6 - 1);
+                            let index = parseInt(news[i].startPoint.z / 6)
+                            self.psbRobot = this.scenes.getObjectByName(`psb-group-${index}`)
                             let psb = self.psbRobot.children[order];//运动机器人
+                            // debugger
                             // console.log('psb', psb)
                             if (psb.state) {
                                 self.clawBox(news[i], news[i].startPoint, news[i].endPoint, news[i].startTime, news[i].index);
@@ -1021,7 +1225,6 @@
                 handler(news, old) {
                     if (news.length && this.shelves) {
                         this.addBox();
-                        this.$parent.createGroundAndFloor();
                         this.$set(this.$parent.loadState, 'addBox', true)
                     }
                 },
@@ -1034,7 +1237,9 @@
                     // console.log('news', news, self.pickFinish);
                     for (let i in self.waitData) {
                         let news = self.waitData;
-                        let order = parseInt(news[i].startPoint.z - 1);
+                        let order = parseInt(news[i].startPoint.z % 6 - 1);
+                        let index = parseInt(news[i].startPoint.z / 6)
+                        self.psbRobot = this.scenes.getObjectByName(`psb-group-${index}`)
                         let psb = self.psbRobot.children[order];//运动机器人
                         console.log('psb', psb)
                         if (psb.state) {
@@ -1073,7 +1278,10 @@
                     }
                 } else {
                     let nowRun = self.nowRun.filter((obj, index) => {
-                        return !(self.psbRobot.children[parseInt(obj.startPoint.z - 1)].state);
+
+                        let num = parseInt(obj.startPoint.z % 6 - 1)
+                        self.psbRobot = this.scenes.getObjectByName(`psb-group-${num}`)
+                        return !(self.psbRobot.children[parseInt(obj.startPoint.z % 6 - 1)].state);
                     });
                     if (nowRun.length) {
                         console.log('e', self.runPoint);

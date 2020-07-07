@@ -44,6 +44,7 @@ export default {
         requestUrl: '',
         isCreate: false,
         reqTimes: [], // 划分请求时间段的数组
+        hasData: false,
     },
     getters: {
         getCurrentProject: state => {
@@ -120,6 +121,7 @@ export default {
             }
         },
         getReqTimes: state => state.reqTimes,
+        getHasData: state => state.hasData,
     },
     mutations: {
         changeActiveProjectIndex(state, index) {
@@ -229,6 +231,9 @@ export default {
         setReqTimes(state, array) {
             state.reqTimes = array
         },
+        setHasData(state, bool) {
+            state.hasData = bool
+        },
     },
     actions: {
         getProjectData(context) {
@@ -240,17 +245,36 @@ export default {
             let { state } = context
             const { projectName, ...reset } = data
             context.commit('changeIsCreateWrapperShow', false);
+
             Vue.prototype.$post('cProject', {
                 pro_name: projectName,
                 pro_param: JSON.stringify({...reset })
             }).then(res => {
+                // context.commit('setCurrentProjectId', res.data.id)
                 context.commit('addNewProject', {
-                        id: res.data.id,
-                        name: projectName,
-                        nowTime: reset.nowTime,
-                        projectDetail: {...reset },
+                    id: res.data.id,
+                    name: projectName,
+                    nowTime: reset.nowTime,
+                    projectDetail: {...reset},
+                })
+                let fromEdit = sessionStorage.getItem('fromEdit')
+                if (fromEdit == true) {
+                    sessionStorage.setItem('projectId', res.data.id)
+                    sessionStorage.setItem('isEdit', false)
+                    context.commit('setCurrentProjectData', {
+                        bool: false,
+                        projectData: {
+                            id: res.data.id,
+                            name: projectName,
+                            pro_name: projectName,
+                            nowTime: reset.nowTime,
+                            projectDetail: {...reset},
+                        }
                     })
-                    // context.commit('setProjectData', data.projectInfo)
+                    context.commit('setProjectName', projectName)
+                    sessionStorage.setItem('fromEdit', false)
+                }
+                // context.commit('setProjectData', data.projectInfo)
             })
 
             // })

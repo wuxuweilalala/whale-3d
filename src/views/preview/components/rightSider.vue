@@ -391,7 +391,7 @@ export default {
         },
         // 划分时间 请求要用
         divideTime(d1, d2) {
-            let day = 1000 * 60 * 60 * 24
+            let day = 1000 * 60 * 60 * 6
             let days = (d2.getTime() - d1.getTime()) / day
             let d = (d2.getTime() - d1.getTime()) % day
             this.setReqTimes([])
@@ -426,7 +426,7 @@ export default {
             let wall = scene.getObjectByName('boardteam')
             let wallPosition = new this.$THREE.Vector3();
             wall.getWorldPosition(wallPosition)
-            console.log('播种墙', wall, wallPosition, this.getplayState, TWEEN.getAll())
+            // console.log('播种墙', wall, wallPosition, this.getplayState, TWEEN.getAll())
             if (this.getplayState) {
                 // let boxPosition = new this.$THREE.Vector3();
                 // let box = TWEEN.getAll()[0].box
@@ -435,10 +435,12 @@ export default {
                 // let psb = scene.getObjectById(box.id)
                 // psb.getWorldPosition(boxPosition)
                 // console.log('position', psb.position, psb)
-                // psb.position.set(100000, 3000, 5000)
+                // psb.position.set(1000, 185, 0)
                 // // console.log('postiiion after', box.position, wallPosition.x, boxPosition.y, boxPosition.z)
                 // // console.log('TWEEN.getAll', TWEEN.getAll()[0], box)
                 // TWEEN.getAll()[0].stop()
+                let psbs = scene.getObjectByName('psb')
+                console.log('psbs', psbs, scene)
             }
             this.$store.commit('index/setSelectDate', {s1, s2});
             this.setPlayedAnimateState(false);
@@ -475,7 +477,7 @@ export default {
         // 请求时间
         requestTime(id) {
             let params = {
-                project_id: id,
+                project_id: sessionStorage.getItem('projectId'),
             };
             if(id !== undefined) {
                 this.$get('gCoreData', params).then(res => {

@@ -23,10 +23,10 @@
             <span>{{nowDate}}</span>
             <span>{{nowTime}}</span>
         </div>
-        <div class="rightDec">
-            <img src="@/assets/scene/rightDecrotion.png"
-              alt="">
-        </div>
+        <!--        <div class="rightDec">-->
+        <!--            <img src="@/assets/scene/rightDecrotion.png"-->
+        <!--              alt="">-->
+        <!--        </div>-->
     </header>
 </template>
 
@@ -86,6 +86,14 @@ export default {
                 font-size: 0.8vw;
                 font-weight: bold;
                 padding-left: 0.3vw;
+            }
+        }
+
+        .scale {
+            width: 71.8vw;
+
+            img {
+                width: 71.8vw;
             }
         }
 

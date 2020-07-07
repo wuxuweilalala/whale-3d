@@ -1,18 +1,23 @@
 <template>
     <div
         v-if="item.modelName !== '堆塔'"
-        class="toolOther"
+        :class="className"
         ref="toolOther"
         :style="{ left: left + 'px', top: top + 'px', background: `url(${bgImg})`, zIndex: zIndex, width: width, height: height, backgroundSize: '100% 100%' }"
         :data-name="generateModelName"
+        :data-index="index"
         @mousedown.stop="mousedown"
         @mouseup.stop="mouseup"
+        :data-id="componentId"
+        v-show="show" :data-deleted="!show"
     ></div>
 
     <div v-else ref="tools" :style="{ left: left + 'px', top: top + 'px' }" @mousedown.stop="mousedown" :data-name="generateModelName"
-         @mouseup.stop="mouseup" class="model-other box">
+         @mouseup.stop="mouseup" class="model-other box" :data-id="componentId" :data-num="boxColumns"
+         :data-space="xSpace" :data-index="index" v-show="show" :data-deleted="!show"
+    >
         <div
-            class="toolOther"
+            :class="className"
             ref="toolOther"
             :style="{ left: item.left, top: item.top, background: `url(${bgImg})`, zIndex: zIndex, width: width, height: height, backgroundSize: '100% 100%' }"
             v-for="(item, index) in boxs"
@@ -29,19 +34,17 @@
         mixins: [mixin],
         data() {
             return {
-                zIndex: 0,
+                zIndex: 9999,
                 boxColumns: 1,
                 boxRows: 6,
                 ySpace: 80,
                 xSpace: 60,
                 boxs: [],
                 // isBox: false, // 是否是堆塔
+                show: true,
             };
         },
         computed: {
-            ...mapState('edit', {
-                modelOptions: 'modelOptions',
-            }),
             ...mapGetters('edit', {
                 getBoxItems: 'getBoxItems',
                 getModelOption: 'getModelOption',
@@ -51,19 +54,36 @@
             },
             height() {
                 return this.item.height;
-            }
+            },
+            className() {
+                return `toolOther other-${this.index}`
+            },
         },
         created() {
-            this.zIndex = this.getZIndex + 1;
-            this.generateBox(this.item.modelName, this.boxColumns, this.xSpace);
-            this.setLeftAndTop()
-            console.log('组件更新')
+            if(!this.item.isDeleted) {
+                this.zIndex = this.getZIndex + 1
+                // this.border = this.item.border
+                this.setLeftAndTop()
+                this.initModel()
+            } else {
+                this.show = !this.item.isDeleted
+            }
         },
         methods: {
             ...mapMutations('edit', {
                 setPsbPos: 'setPsbPos',
                 changeBox: 'changeBox'
             }),
+            initModel() {
+                if(this.item.boxColumns !== undefined) {
+                    this.boxColumns = this.item.boxColumns
+                }
+                if(this.item.boxSpace !== undefined) {
+                    this.xSpace = this.item.boxSpace
+                }
+                // debugger
+                this.generateBox(this.item.modelName, this.boxColumns, this.xSpace);
+            },
             setLeftAndTop() {
                 if (this.item.modelName === 'PSB') {
                     this.setPsbPos({
@@ -83,11 +103,17 @@
                 } else {
                     this.dom = this.$refs.toolOther;
                 }
-                if(this.item.modelName !== '堆塔') {
-                    this.setParentValue('', false, false)
+                if (this.item.modelName !== '堆塔') {
+                    this.setParentValue('', this.dom, false, false)
                 } else {
-                    this.setParentValue('堆塔数量', true, true)
+                    this.setParentValue('堆塔数量', this.dom, true, true)
+                    this.$parent.posSpace = this.xSpace
+                    this.$parent.posNum = parseInt(this.boxColumns)
                 }
+                this.$parent.showBorder(this.index)
+                // this.border = '0.08vw solid rgba(230, 162, 64, 1)'
+                this.$parent.posLeft = this.left
+                this.$parent.posTop = this.top
 
                 this.dom.style.zIndex = this.getZIndex + 1;
                 this.setZIndex(this.getZIndex + 1);
@@ -109,7 +135,7 @@
             generateBox(name, boxColumns, xSpace, boxRows=6) {
                 if (name === '堆塔') {
                     // this.isBox = true;
-                    this.boxs = []
+                    let result = []
                     let topY = -this.ySpace;
                     let leftX = -xSpace;
                     for (let i = 0; i < boxColumns; i++) {
@@ -117,35 +143,28 @@
                         topY = -this.ySpace;
                         for (let j = 0; j < boxRows; j++) {
                             topY = topY + this.ySpace;
-                            this.boxs.push({
+                            result.push({
                                 left: leftX + 'px',
                                 top: topY + 'px'
                             });
                         }
                     }
+                    this.boxs = result
                 }
             }
         },
         watch: {
-            getBoxItems: {
-                handler(val, old) {
-                    if(val.length !== old.length) {
-                        this.generateBox('堆塔')
-                    }
-                }
-            },
-            getBoxValue: {
+            getModelOption: {
                 deep: true,
                 handler(val, old) {
-                    this.generateBox('堆塔')
-                }
-            },
-            modelOptions: {
-                deep: true,
-                handler(val, old) {
-                    let op = val[this.index]
-                    if(op.name == 'box') {
-                        this.generateBox('堆塔', op.boxColumns, op.boxSpace)
+                    // let option = this.$parent.getArrayFromUUID(val, this.componentId)
+                    let option = val[this.index]
+                    this.show = !option.isDeleted
+                    let selectedId = this.$parent.selectedId
+                    if(option.id === selectedId && !option.isDeleted) {
+                        this.generateBox('堆塔', option.boxColumns, option.boxSpace)
+                        this.boxColumns = option.boxColumns
+                        this.boxSpace = option.boxSpace
                     }
                 }
             }
@@ -160,10 +179,12 @@
 <style lang="scss" scoped>
     .model-other {
         position: absolute;
+        /*border: 0.05vw solid rgba(255, 172, 41, 1);*/
     }
 
     .toolOther {
         cursor: move;
+        /*border: 0.05vw solid rgba(255, 172, 41, 1);*/
         position: absolute;
     }
 </style>

@@ -28,11 +28,11 @@ export default {
             {
                 name: '工作人员',
                 childList: [
-                    { name: '工作人员1号' },
-                    { name: '工作人员1号' },
-                    { name: '工作人员1号' },
-                    { name: '工作人员1号' },
-                    { name: '工作人员1号' },
+                    {name: '工作人员1号'},
+                    {name: '工作人员1号'},
+                    {name: '工作人员1号'},
+                    {name: '工作人员1号'},
+                    {name: '工作人员1号'},
                 ]
             },
         ],
@@ -40,7 +40,7 @@ export default {
         zIndex: 1, // 存储当前最大的 z-index
         positions: [], // 轨道的位置信息
         trackWidth: {
-            width: '37.6vw',
+            width: '2.8vw',
             num: 12,
         }, // 轨道的长度
         trackPos: {}, // 轨道整体的 位置信息
@@ -123,7 +123,20 @@ export default {
             } else {
                 state.modelOptions.push(data)
             }
-            console.log('model option', state.modelOptions)
+            if(state.modelOptions.length > 0) {
+                localStorage.setItem('modelOptions', JSON.stringify(state.modelOptions))
+            }
+        },
+        initModelOption(state) {
+            let option = localStorage.getItem('modelOptions')
+            if(option !== null) {
+                state.modelOptions = JSON.parse(option)
+            } else {
+                state.modelOptions = []
+            }
+        },
+        setOptions(state, data) {
+            state.modelOptions = data
             if(state.modelOptions.length > 0) {
                 localStorage.setItem('modelOptions', JSON.stringify(state.modelOptions))
             }

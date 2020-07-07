@@ -31,18 +31,19 @@ export default {
 			// let num = 0;
 			state.stationOptions=[]
 			for (let j = 0; j < floorNum; j++) {
-			for (let i = 0; i < Number(list[j].stationNum); i++) {
-				let site = creatCoordinate(useArea, i, 0, 0);
-				let station = {  //默认配置
-					name: `station${i}-${i}`,//工作站名称
-					stationSite: {x: site.vertical , y:j*185, z: site.horizontal},//工作站位置
-					shelvesNum:Number(list[j].shelvesUnitNum),
-					// currentProjectData.machineInfo[1].value,  //货架数量
-					sku: 294, //库存
-					psbNum: 6  //psb数量
-				};
-				state.stationOptions.push(station);
-			}
+                for (let i = 0; i < Number(list[j].stationNum); i++) {
+                    let site = creatCoordinate(useArea, i, 0, 0);
+                    let station = {  //默认配置
+                        name: `station${i}-${i}`,//工作站名称
+                        stationSite: {x: site.vertical , y:j*185, z: site.horizontal},//工作站位置
+                        shelvesNum:Number(list[j].shelvesUnitNum),
+                        stationNum: Number(list[j].stationNum),
+                        // currentProjectData.machineInfo[1].value,  //货架数量
+                        sku: 294, //库存
+                        psbNum: 6  //psb数量
+                    };
+                    state.stationOptions.push(station);
+                }
 			}
 			return state.stationOptions;
 		},

@@ -25,7 +25,7 @@
         components: {LeftSide, sonHeader},
         data() {
             return {
-                loading: true,
+                loading: false,
             }
         },
         beforeRouteLeave(to, from, next) {

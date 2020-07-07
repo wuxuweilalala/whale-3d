@@ -40,18 +40,18 @@
                             </div>
                             <div class="column1-top-len">
                                 <span class="span-text">轨道长</span>
-                                <span class="span-num">{{ shelvesUnitNum|| 0}} <span>堆塔</span></span>
+                                <span class="span-num">{{ shelveNum || 0 }} <span>堆塔</span></span>
                             </div>
                         </div>
                         <div class="column1-bottom">
                             <div class="column1-bottom-contain">
                                 <div class="column1-top-num">
-                                    <span class="span-text">PST</span>
-                                    <span class="span-num">{{ stationNum || 0}} <span>个</span></span>
+                                    <span class="span-text">PSB</span>
+                                    <span class="span-num">{{ psbNum * stationNum || 0}} <span>个</span></span>
                                 </div>
                                 <div class="column1-top-len">
                                     <span class="span-text">工作站</span>
-                                    <span class="span-num">{{ stationNum || 0}} <span>个</span></span>
+                                    <span class="span-num">{{ stationNum * staNum || 0}} <span>个</span></span>
                                 </div>
                             </div>
                         </div>
@@ -123,6 +123,9 @@ export default {
             machineInfo: [],
             floorNum: 0,
             sceneOption: [],
+            staNum: 0,
+            psbNum: 0,
+            shelveNum: 0,
         }
     },
     computed: {
@@ -298,8 +301,8 @@ export default {
             }
         },
         computedShelvesNum() {
-            if(this.sceneOption.length >= 2) {
-                if(parseInt(this.sceneOption[0].shelvesUnitNum) > parseInt(this.sceneOption[1].shelvesUnitNum)) {
+            if (this.sceneOption.length >= 2) {
+                if (parseInt(this.sceneOption[0].shelvesUnitNum) > parseInt(this.sceneOption[1].shelvesUnitNum)) {
                     this.shelvesUnitNum = parseInt(this.sceneOption[0].shelvesUnitNum)
                 } else {
                     this.shelvesUnitNum = parseInt(this.sceneOption[1].shelvesUnitNum)
@@ -307,7 +310,24 @@ export default {
             } else {
                 this.shelvesUnitNum = parseInt(this.sceneOption[0].shelvesUnitNum)
             }
-        }
+        },
+        getDataFromModel() {
+            for (let i = 0; i < this.modelData.length; i++) {
+                let model = this.modelData[i]
+                let psb = model.psb.length
+                let shelve = model.shelve
+                this.psbNum = this.psbNum + psb
+                for (let j = 0; j < shelve.length; j++) {
+                    let s = shelve[j]
+                    if (s.name == 'station') {
+                        this.staNum = this.staNum + s.num
+                    }
+                    if (i == 0) {
+                        this.shelveNum = this.shelveNum + s.num
+                    }
+                }
+            }
+        },
     },
     watch: {
         sceneOption: {
@@ -322,6 +342,8 @@ export default {
                 this.machineInfo = this._get(val, 'projectDetail.machineInfo', []);
                 this.floorNum = this._get(val, 'projectDetail.sceneOption', []).length;
                 this.sceneOption = this._get(val, 'projectDetail.sceneOption', []);
+                this.modelData = this._get(val, 'projectDetail.modelData', []);
+                this.getDataFromModel()
                 if(this.sceneOption.length > 0) {
                     this.computedStationNum();
                     this.computedShelvesNum();

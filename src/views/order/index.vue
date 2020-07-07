@@ -100,7 +100,7 @@
                     </div>
 
                 </div>
-                <span>{{ 123 }}</span>
+                <span>{{   }}</span>
                 <div class="inquireWrapper">
                     <div class="inquireInput">
                         <span></span>
@@ -192,6 +192,8 @@
                 // formatTimeValue: '2020-04-08 17:15~2020-04-09 17:15',   // 格式化时间
                 formatTimeValue: '请选择任务时间段',
                 currentIndex: 0,
+                responses: [],
+                resNum: 0,
             }
         },
         computed: {
@@ -199,11 +201,13 @@
                 getSelectedDate: 'getSelectedDate',
                 currentProjectData: 'getCurrentProjectData',
                 getProjectIdAndUrl: 'getProjectIdAndUrl',
+                getReqTimes: 'getReqTimes',
             }),
         },
         methods: {
             ...mapMutations('index', {
                 setSelectDate: 'setSelectDate',
+                setReqTimes: 'setReqTimes',
             }),
             deleteOrder(index) {
                 // console.log(index);
@@ -233,31 +237,93 @@
                 let sec = date.getSeconds();
                 return `${year}-${this.formatTime(mon)}-${this.formatTime(day)} ${this.formatTime(hour)}:${this.formatTime(min)}:${this.formatTime(sec)}`;
             },
-            getStockData() {
-                let firstStationNum = 3;
-                console.log('currentProjectData', this.currentProjectData)
-                let params = {
-                    warehouseID: this.currentProjectData.projectDetail.whalehouseID,
-                    startTime: this.getSelectedDate.s1,
-                    endTime: this.getSelectedDate.s2,
-                    firstStationNum,
-                    project_id: sessionStorage.getItem('projectId'),
-                    url_param: this.currentProjectData.projectDetail.requestUrl,
-                };
-                this.$get('gStockData', params).then(res => {
-                    if (res.code == '200' && res.data) {
-                        let arr = res.data[0]
-                        console.log(res.data, arr)
-                        for (let i = 0; i < arr.length; i++) {
-                            let a = arr[i]
-                            this.orderList.splice(this.orderList.length, 0, ...a.outOrderID)
-                            this.orderList.forEach((item, index) => {
-                                item.index = index + 1
+            getStockData(date) {
+                this.$get('dCoreData', {project_id: sessionStorage.getItem('projectId')}).then(res => {
+                    if (res.code == '200') {
+                        let list = this.currentProjectData.projectDetail.sceneOption;
+                        let firstStationNum = parseInt(list[0].stationNum);
+                        let reqTimes = this.getReqTimes
+                        console.log(' req times', reqTimes, this.currentProjectData)
+                        let whalehouseID = this.currentProjectData.projectDetail.whalehouseID
+                        let requestUrl = this.currentProjectData.projectDetail.requestUrl
+                        for (let i = 0; i < reqTimes.length; i++) {
+                            let req = reqTimes[i]
+                            let params = {
+                                warehouseID: whalehouseID,
+                                startTime: req.start,
+                                endTime: req.end,
+                                firstStationNum,
+                                project_id: this.currentProjectData.id,
+                                id: sessionStorage.getItem('projectId'),
+                                url_param: requestUrl,
+                                sort: i + 1,
+                                total_startTime: date.s1,
+                                total_endTime: date.s2,
+                            };
+                            this.$get('gStockData', params).then(res => {
+                                this.responses.push(res)
                             })
-                            this.currentList = this.orderList.slice(0, 20)
                         }
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '该时间段无任务',
+                            type: 'warning'
+                        });
+                        this.$store.commit('index/setplayState', false);
+                        this.$store.commit('index/setFirstPlay', true);
                     }
                 })
+            },
+            // getStockData() {
+            //     let firstStationNum = 3;
+            //     console.log('currentProjectData', this.currentProjectData)
+            //     let params = {
+            //         warehouseID: this.currentProjectData.projectDetail.whalehouseID,
+            //         startTime: this.getSelectedDate.s1,
+            //         endTime: this.getSelectedDate.s2,
+            //         firstStationNum,
+            //         project_id: sessionStorage.getItem('projectId'),
+            //         url_param: this.currentProjectData.projectDetail.requestUrl,
+            //     };
+            //     this.$get('gStockData', params).then(res => {
+            //         if (res.code == '200' && res.data) {
+            //             let arr = res.data[0]
+            //             console.log(res.data, arr)
+            //             for (let i = 0; i < arr.length; i++) {
+            //                 let a = arr[i]
+            //                 this.orderList.splice(this.orderList.length, 0, ...a.outOrderID)
+            //                 this.orderList.forEach((item, index) => {
+            //                     item.index = index + 1
+            //                 })
+            //                 this.currentList = this.orderList.slice(0, 20)
+            //             }
+            //         }
+            //     })
+            // },
+            // 划分时间 请求要用
+            divideTime(d1, d2) {
+                let day = 1000 * 60 * 60 * 6
+                let days = (d2.getTime() - d1.getTime()) / day
+                let d = (d2.getTime() - d1.getTime()) % day
+                this.setReqTimes([])
+                let result = []
+                for (var i = 0; i < parseInt(days); i++) {
+                    let start = this.getDate(new Date(d1.getTime() + day * i))
+                    let end = this.getDate(new Date(d1.getTime() + day * (i + 1)))
+                    result.push({
+                        start,
+                        end,
+                    })
+                }
+                if (d > 0) {
+                    let start = this.getDate(new Date(d1.getTime() + day * i))
+                    result.push({
+                        start,
+                        end: this.getDate(d2),
+                    })
+                }
+                this.setReqTimes(result)
             },
             // 日期选择器 change 事件
             dateChangeEvent(event) {
@@ -265,12 +331,16 @@
                 let d2 = this.timeValue[1];
                 let s1 = this.getDate(d1);
                 let s2 = this.getDate(d2);
+                this.divideTime(d1, d2)
                 this.formatTimeValue = s1 + '~' + s2;
                 this.setSelectDate({
                     s1,
                     s2,
                 })
-                this.getStockData()
+                this.getStockData({
+                    s1,
+                    s2,
+                })
             },
             // 日期选择器 click 事件
             showDateSelected(event) {
@@ -282,7 +352,7 @@
             this.totalSize = this.orderList.length
 
             // 请求订单数据
-            this.getStockData()
+            // this.getStockData()
             // this.orderList.forEach((item, index) => {
             //     item.index = index + 1
             // })
@@ -292,6 +362,62 @@
             }
         },
         mounted() {
+        },
+        watch: {
+            responses: {
+                handler(val) {
+                    if (val.length === this.getReqTimes.length) {
+                        for (let i = 0; i < val.length; i++) {
+                            let res = val[i]
+                            if (res.code == '200') {
+                                this.resNum = this.resNum + 1
+                            } else {
+                                this.$message({
+                                    showClose: true,
+                                    message: '该时间段无任务',
+                                    type: 'warning'
+                                });
+                            }
+                        }
+                    }
+                }
+            },
+            resNum: {
+                handler(val) {
+                    if (this.getReqTimes.length === val) {
+                        let self = this
+                        this.$get('gCoreData', {project_id: sessionStorage.getItem('projectId')}).then(res => {
+                            if (res.code == '200' && res.data) {
+                                // self.getResData = res.data.proj_3D
+                                // self.handleData(res.data.proj_3D);
+                                // self.animateData = self.handleAnimateData(res.data.proj_3D);
+                                // self.animateData = res.data.proj_3D;
+                                let arr = res.data[0]
+                                for (let i = 0; i < arr.length; i++) {
+                                    let a = arr[i]
+                                    this.orderList.splice(this.orderList.length, 0, ...a.outOrderID)
+                                    this.orderList.forEach((item, index) => {
+                                        item.index = index + 1
+                                    })
+                                    this.currentList = this.orderList.slice(0, 20)
+                                }
+                            } else {
+                                self.$message({
+                                    showClose: true,
+                                    message: '该时间段无任务',
+                                    type: 'warning'
+                                });
+                            }
+                        })
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '该时间段无任务',
+                            type: 'warning'
+                        });
+                    }
+                }
+            },
         }
     }
 </script>
