@@ -41,7 +41,7 @@
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.1.2",
     "lint-staged": "^9.5.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "sass": "^1.25.0",
     "sass-loader": "^8.0.2",
     "three": "^0.114.0",
