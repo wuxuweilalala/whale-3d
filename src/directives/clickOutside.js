@@ -8,7 +8,7 @@ function validate(binding) {
 }
 
 function isPopup(popupItem, elements) {
-	// debugger
+	//
 	if (!popupItem || !elements)
 		return false;
 

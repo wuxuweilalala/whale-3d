@@ -420,28 +420,11 @@ export default {
             let s1 = this.getDate(d1);
             let s2 = this.getDate(d2);
             this.divideTime(d1, d2)
-
             this.formatTimeValue = s1 + '~' + s2;
-            let scene = this.$parent.$parent.scene
-            let wall = scene.getObjectByName('boardteam')
-            let wallPosition = new this.$THREE.Vector3();
-            wall.getWorldPosition(wallPosition)
-            // console.log('播种墙', wall, wallPosition, this.getplayState, TWEEN.getAll())
-            if (this.getplayState) {
-                // let boxPosition = new this.$THREE.Vector3();
-                // let box = TWEEN.getAll()[0].box
-                // console.log('box  sdfsa ', box, TWEEN.getAll())
-                // debugger
-                // let psb = scene.getObjectById(box.id)
-                // psb.getWorldPosition(boxPosition)
-                // console.log('position', psb.position, psb)
-                // psb.position.set(1000, 185, 0)
-                // // console.log('postiiion after', box.position, wallPosition.x, boxPosition.y, boxPosition.z)
-                // // console.log('TWEEN.getAll', TWEEN.getAll()[0], box)
-                // TWEEN.getAll()[0].stop()
-                let psbs = scene.getObjectByName('psb')
-                console.log('psbs', psbs, scene)
-            }
+            // let scene = this.$parent.$parent.scene
+            // let wall = scene.getObjectByName('boardteam')
+            // let wallPosition = new this.$THREE.Vector3();
+            // wall.getWorldPosition(wallPosition)
             this.$store.commit('index/setSelectDate', {s1, s2});
             this.setPlayedAnimateState(false);
             this.$store.commit('index/setplayState', false);
@@ -483,7 +466,7 @@ export default {
                 this.$get('gCoreData', params).then(res => {
                     if (res.code == '200' && res.data) {
                         this.handleData(res.data);
-                        if (res.data.proj_3D) {
+                        if ( res.data.proj_3D.length) { //error:
                             this.setPlayedAnimateState(true);
                             this.setPlayedAnimateDate(res.data.proj_3D);
                         } else {

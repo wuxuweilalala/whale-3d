@@ -45,6 +45,12 @@ export default {
         isCreate: false,
         reqTimes: [], // 划分请求时间段的数组
         hasData: false,
+        optionShow: false,
+        againEdit: false,
+        enterState: true,
+        machineList: [],
+        stationObj:0,
+
     },
     getters: {
         getCurrentProject: state => {
@@ -106,7 +112,10 @@ export default {
         },
         getSelectedDate: state => state.selectedDate,
         getFirstPlay: state => state.firstPlay,
-        getProgressTime: state => state.moveTime / state.totalTime * 100 > 100 ? 100 : state.moveTime / state.totalTime * 100, //获取总时长
+        getProgressTime(state){
+            let time= state.moveTime / state.totalTime * 100
+            return time > 100? 100 : time //获取总时长
+        },
         getTotalTime: state => state.totalTime,
         getMoveTime: state => state.moveTime,
         // 获取之前是否播放动画的状态
@@ -122,6 +131,11 @@ export default {
         },
         getReqTimes: state => state.reqTimes,
         getHasData: state => state.hasData,
+        getSceneOptionShow: state => state.optionShow,
+        getAgainEdit: state => state.againEdit,
+        getEnterState: state => state.enterState,
+        getMachineList: state => state.machineList,
+        getStationObj:state=>state.stationObj
     },
     mutations: {
         changeActiveProjectIndex(state, index) {
@@ -234,7 +248,23 @@ export default {
         setHasData(state, bool) {
             state.hasData = bool
         },
-    },
+        setSceneOptionShow(state, bool) {
+            state.optionShow = bool
+        },
+        setAgainEdit(state, bool) {
+            state.againEdit = bool
+        },
+        setEnterState(state, bool) {
+            state.enterState = bool
+        },
+        setMachineList(state, list) {
+            state.machineList = list
+        },
+        setPstSwitch(state,flag){
+            state.stationObj++
+        }
+    }
+    ,
     actions: {
         getProjectData(context) {
             Vue.prototype.$get('lProject?size=20').then(res => {
@@ -242,40 +272,66 @@ export default {
             })
         },
         creatProjectData(context, data) {
-            let { state } = context
-            const { projectName, ...reset } = data
+            let {state} = context
+            const {projectName, ...reset} = data
             context.commit('changeIsCreateWrapperShow', false);
-
-            Vue.prototype.$post('cProject', {
-                pro_name: projectName,
-                pro_param: JSON.stringify({...reset })
-            }).then(res => {
-                // context.commit('setCurrentProjectId', res.data.id)
-                context.commit('addNewProject', {
-                    id: res.data.id,
-                    name: projectName,
-                    nowTime: reset.nowTime,
-                    projectDetail: {...reset},
-                })
-                let fromEdit = sessionStorage.getItem('fromEdit')
-                if (fromEdit == true) {
-                    sessionStorage.setItem('projectId', res.data.id)
-                    sessionStorage.setItem('isEdit', false)
-                    context.commit('setCurrentProjectData', {
-                        bool: false,
-                        projectData: {
-                            id: res.data.id,
-                            name: projectName,
-                            pro_name: projectName,
-                            nowTime: reset.nowTime,
-                            projectDetail: {...reset},
+            if (sessionStorage.getItem('againEdit') == 'true') {
+                let id = sessionStorage.getItem('projectId')
+                sessionStorage.setItem('againEdit', false)
+                Vue.prototype.$put('cProject', {
+                    id: id,
+                    pro_name: projectName,
+                    pro_param: JSON.stringify({...reset})
+                }).then(res => {
+                    // context.commit('setCurrentProjectId', res.data.id)
+                    if (res.code == 200) {
+                        let list = context.state.projectList
+                        for (let i = 0; i < list.length; i++) {
+                            let l = list[i]
+                            if (l.id == id) {
+                                l.name = projectName,
+                                    l.pro_name = projectName,
+                                    l.nowTime = reset.nowTime,
+                                    l.projectDetail = {...reset}
+                            }
                         }
-                    })
+                    }
                     context.commit('setProjectName', projectName)
-                    sessionStorage.setItem('fromEdit', false)
-                }
-                // context.commit('setProjectData', data.projectInfo)
-            })
+                    // context.commit('setProjectData', data.projectInfo)
+                })
+            } else {
+                Vue.prototype.$post('cProject', {
+                    pro_name: projectName,
+                    pro_param: JSON.stringify({...reset})
+                }).then(res => {
+                    // context.commit('setCurrentProjectId', res.data.id)
+                    context.commit('addNewProject', {
+                        id: res.data.id,
+                        name: projectName,
+                        nowTime: reset.nowTime,
+                        projectDetail: {...reset},
+                    })
+                    let fromEdit = sessionStorage.getItem('fromEdit')
+                    if (fromEdit == true) {
+                        sessionStorage.setItem('projectId', res.data.id)
+                        sessionStorage.setItem('isEdit', false)
+                        context.commit('setCurrentProjectData', {
+                            bool: false,
+                            projectData: {
+                                id: res.data.id,
+                                name: projectName,
+                                pro_name: projectName,
+                                nowTime: reset.nowTime,
+                                projectDetail: {...reset},
+                            }
+                        })
+                        context.commit('setProjectName', projectName)
+                        sessionStorage.setItem('fromEdit', false)
+                    }
+                    // context.commit('setProjectData', data.projectInfo)
+                })
+            }
+
 
             // })
         },
@@ -287,6 +343,15 @@ export default {
                     context.commit('deleteProjectList', index);
                 }
             });
+        },
+        getDeployData(context) {
+            Vue.prototype.$get('sorterDataReadOrWrite').then(res => {
+                if(res.code == 200) {
+                    context.machineList = res.result
+                }
+            }).catch(err => {
+                console.error(err)
+            })
         }
 
     },

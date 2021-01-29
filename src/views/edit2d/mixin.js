@@ -1,4 +1,5 @@
 import {mapGetters, mapMutations, mapState} from 'vuex';
+import de from "element-ui/src/locale/lang/de";
 export default {
     data() {
         return {
@@ -31,14 +32,29 @@ export default {
             setZIndex: 'setZIndex',
             setTrackPos: 'setTrackPos',
         }),
+        setItemStyle(width, height, left, top) {
+            let items = this.$parent.floorList[0].componentList[0].itemList
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i]
+                if (item.id == this.item.id) {
+                    item.widthStyle = width
+                    item.heightStyle = height
+                    item.leftStyle = left + 2
+                    item.topStyle = top + 2
+                }
+            }
+            localStorage.setItem('floorList', JSON.stringify(this.$parent.floorList))
+        },
         // 设置 borderStyle
         setBorderStyle(width, height, left, top) {
+            this.setItemStyle(width, height, left, top)
             this.$parent.borderStyle = {
                 width: width,
                 height: height,
                 top: top + 'px',
                 left: left + 'px',
             }
+            this.$parent.key = this.$parent.uuid()
         },
         // 设置父组件的值
         setParentValue(name, dom, spaceShow = true, numShow = true) {
@@ -46,7 +62,6 @@ export default {
             this.$parent.posContent.none = false
             this.$parent.selectedIndex = this.index
             this.$parent.selectedId = this.componentId
-            console.log('this.$parent.selectedId', this.$parent.selectedId, this.componentId, this.$parent.clickIndex, this.index)
             this.$parent.elementName = name
             this.$parent.selectedElement = dom
             this.$parent.numShow = numShow
@@ -58,7 +73,7 @@ export default {
             this.mouseX = 0
             this.mouseY = 0
             this.$parent.updated()
-                // event.target.style.cursor = 'default';
+            // event.target.style.cursor = 'default';
 
             // this.setTrackPos({
             //     left: this.item.left - this.item.offset.x,
@@ -83,18 +98,45 @@ export default {
                 return this.getParentTag(dom.offsetParent);
             }
         },
-        moveClac(thisDom, width, height) {
+        setLastStyle() {
+            let len = this.$parent.floorList[0].components[0].itemList.length
+            if (this.index == len - 1) {
+                this.$parent.setBoxStyle()
+            }
+        },
+        findIsSelected() {
+            let items = this.$parent.floorList[0].componentList[0].itemList
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i]
+                if (item.isSelected == true) {
+                    this.setBorderStyle(item.widthStyle, item.heightStyle, item.leftStyle - 2, item.topStyle - 2)
+                }
+            }
+        },
+        setIsSelected(id) {
+            let items = this.$parent.floorList[0].componentList[0].itemList
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i]
+                if (item.id == id) {
+                    item.isSelected = true
+                } else {
+                    item.isSelected = false
+                }
+            }
+            localStorage.setItem('floorList', JSON.stringify(this.$parent.floorList))
+        },
+        moveClac(event, thisDom, width, height) {
             this.moveLeft = event.clientX;
             this.moveTop = event.clientY;
-            // console.log('event.clientX', event.clientX, event.clientY)
+            let rect = JSON.parse(sessionStorage.getItem('rect'))
+            if (this.moveLeft < rect.left) {
+                window.onmousemove = ''
+            }
             // 左边限制
             if (this.moveLeft - this.offsetX <= this.offsetParentLeft + this.$parent.ruleWidth) {
                 this.moveLeft = this.offsetParentLeft + this.offsetX + this.$parent.ruleWidth;
             }
-            if (this.moveLeft < 300) {
-                window.onmousemove = ''
-            }
-            if (this.moveTop < 145) {
+            if (this.moveTop < rect.top) {
                 window.onmousemove = ''
             }
             // 上边限制
@@ -111,9 +153,13 @@ export default {
             // }
             // 设置left和top
 
+            // thisDom.style.left = this.moveLeft - this.offsetParentLeft - this.offsetX + "px";
+            // thisDom.style.top = this.moveTop - this.offsetParentTop - this.offsetY + "px";
             thisDom.style.left = this.moveLeft - this.offsetParentLeft - this.offsetX + "px";
             thisDom.style.top = this.moveTop - this.offsetParentTop - this.offsetY + "px";
-            // this.setBorderStyle(width, height, this.moveLeft - this.offsetParentLeft - this.offsetX - 2, this.moveTop - this.offsetParentTop - this.offsetY)
+            // console.log('this.moveLeft', this.moveLeft, this.offsetParentLeft, this.offsetX)
+            // console.log('this.moveTop', this.moveTop, this.offsetParentTop, this.offsetY)
+            this.setBorderStyle(width, height, this.moveLeft - this.offsetParentLeft - this.offsetX - 2, this.moveTop - this.offsetParentTop - this.offsetY - 2)
 
         },
         borderBox(oDiv) {
@@ -196,6 +242,7 @@ export default {
     },
     mounted() {
 
+
     },
     computed: {
         ...mapState('edit', {
@@ -224,10 +271,10 @@ export default {
             return this.item.generateModelName
         },
         offsetParentLeft() {
-            return this.item.offsetParentLeft
+            return this.item.offsetParentLeft * this.$parent.docWidth
         },
         offsetParentTop() {
-            return this.item.offsetParentTop
+            return this.item.offsetParentTop * this.$parent.docHeight
         }
     }
 };

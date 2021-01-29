@@ -11,9 +11,11 @@
               :options='item'
               :pickFinish='pickFinish[index]'
               :index="index"
+              :machineData='machineList[index]'
               @actionAnimate='actionAnimate'
               :hasProjectData="hasProjectData"
               ref="scene"
+              @animateFinish="animateFinish"
               v-for='(item,index) in stationOptions'/>
         </div>
         <transition-group name="slide-fade">
@@ -63,6 +65,12 @@
             <img alt=""
               src="@/assets/scene/rightDeoc.png">
         </div>
+        <!--        <div class="main">-->
+        <!--            <div class="flex">-->
+        <!--                <img src="../../assets/scene/loading.gif"-->
+        <!--                  alt="">-->
+        <!--            </div>-->
+        <!--        </div>-->
     </div>
 </template>
 
@@ -75,24 +83,21 @@
 
     import {mapGetters, mapMutations} from 'vuex';
     import GLTFLoader from 'three-gltf-loader';
-    import html2canvas from 'html2canvas';//截图
     import domtoimage from 'dom-to-image';//截图
-    import WatchJS from 'melanke-watchjs';
     import RightSider from './components/rightSider';
     import LeftSider from './components/leftSider';
     import Center from './components/center';
-    // import PointerLockControls from 'three/examples/js/controls/PointerLockControls'
     import {PointerLockControls} from '../../utils/PointerLockControls.js'
 
     let TWEEN = require('tween.js');
 
     export default {
         name: 'index',
+        inject:['reload'],
         components: {ScenePreview, ProjectBar, LeftSider, Center, RightSider},
         computed: {
             ...mapGetters('index', {
                 currentProjectData: 'getCurrentProjectData',
-                // currentProjectData: 'getCurrentProject',
                 isCreateWrapperShow: 'getIsCreateWrapperShow',
                 projectList: 'getProjectList',
                 sceneDetail: 'getSceneDetail',
@@ -103,16 +108,18 @@
                 getFirstPlay: 'getFirstPlay',
                 getEnteredIndex: 'getEnteredIndex',
                 getReqTimes: 'getReqTimes',
+                currentStationNum: "getStationObj",
+                firstPlay: 'getFirstPlay',//获取初始请求
+
             }),
             ...mapGetters('mould', {
                 getMould: 'getMould',
                 stationOptions: 'getStationOptions',
-                initState: 'getInitState',
+                pstTrack: 'getPstTrack'
             }),
             //获取指定单元的库存
             getBoxList() {
                 return (num) => {
-                    // console.log('num', num, this.endBox[num], this.endBox)
                     return this.endBox[num] || [];
                 };
             },
@@ -200,11 +207,18 @@
                 modelData: [],
                 stations: [],
                 hasProjectData: false,
+                psbSite: -40.55243664515625,//psb相对坐标（pst移动需用）
+                machineList: [],
+                pstList: [],
+                pickList: [],
+                timer: null,
+                animateFinishNum:0,
+
             };
         },
         beforeRouteEnter(to, form, next) {
             next(vm => {
-                if(!sessionStorage.getItem('enteredIndex')) {
+                if (!sessionStorage.getItem('enteredIndex')) {
                     next('/index/scene')
                 }
             })
@@ -213,6 +227,8 @@
             ...mapMutations('index', {
                 setCurrentProjectData: 'setCurrentProjectData',
                 setProjectIDAndUrl: 'setProjectIDAndUrl',
+                    setMoveTime: 'setMoveTime',
+                    setTotalTime: 'setTotalTime',
             }),
             // 初始化场景
             initScene() {
@@ -221,32 +237,22 @@
                 var textureLoader = new this.$THREE.TextureLoader();
                 var texture = textureLoader.load(process.env.BASE_URL + 'mould/maps/bg.png');
                 this.scene.background = texture;
-                // this.scene.fog = new this.$THREE.Fog(this.scene.background, 1, 50000);
                 this.stats = new Stats();
                 // this.stats.showPanel(0);
                 this.clock = new this.$THREE.Clock();
-                // document.body.appendChild(this.stats.dom);
-                // this.scene.fog = new this.$THREE.Fog(0x040505, 0.1, 1800); //雾化
             },
             // 初始化灯光
             initLight() {
-                // var spotLight = new THREE.SpotLight(0xffffff);
                 let light = new this.$THREE.PointLight(0x888888);
                 light.position.set(0, 1200, 0);
                 //告诉平行光需要开启阴影投射
                 light.castShadow = false;
-                // this.scene.add(light);
                 var ambient = new this.$THREE.AmbientLight(0xffffff, 1); //AmbientLight,影响整个场景的光源
                 ambient.position.set(0, 0, 0);
                 this.scene.add(ambient);
-                // var directionalLight = new this.$THREE.DirectionalLight( 0xffffff, 0.5 );
-                // directionalLight.position.set(4000, 1000, 4000)
-                // this.scene.add(directionalLight);
                 let directionalLight = new this.$THREE.DirectionalLight(0xffffff, 0.7);
                 directionalLight.position.set(1000, 1000, 0);
-                // directionalLight.target.position.set(350, 800, 800);
                 directionalLight.castShadow = true;
-                // directionalLight.intensity = 2.4;
                 let d = 300;
                 directionalLight.shadow.camera = new this.$THREE.OrthographicCamera(
                     -d,
@@ -264,7 +270,6 @@
             initRenderer() {
                 let scene = this.$refs.station;
                 this.camera = new this.$THREE.PerspectiveCamera(75, scene.clientWidth / scene.clientHeight, 0.1, 1000000);
-                // let value = this.areaInfo.length !== 0 ? this.areaInfo[0].value.width * 27 * 5 : 4000;
                 let width = 8000;
                 let height = 6000;
                 if (this.areaInfo.length > 0) {
@@ -280,8 +285,10 @@
                 this.renderer = new this.$THREE.WebGLRenderer({
                     antialias: false,
                     alpha: true,
+                    logarithmicDepthBuffer: true
                 });
                 this.renderer.setPixelRatio(2);
+                this.renderer.sortObjects = false
                 this.renderer.setSize(scene.clientWidth, scene.clientHeight);
                 this.renderer.setClearColor(0xeeeeee);
                 this.renderer.shadowMap.enabled = true;
@@ -289,67 +296,60 @@
                 scene.appendChild(this.renderer.domElement);
             },
             // 添加机器人和推车
-            addRobot(currentX, station, num, name) {
+            addRobot(picklist) {
+                // currentX, station, num, name
                 const loader = new GLTFLoader();
                 let self = this;
-                let obj = {
-                    index: 0
-                }
-                loader.load(process.env.BASE_URL + 'mould/Robotaction/Robotaction.gltf', gltf => {
-                    let mesh = gltf.scene;
-                    let group = new self.$THREE.Group();
-                    let x = 80
-                    group.name = name;
-                    console.log('group name', group.name)
-
-                    station.add(group);
-                    mesh.scale.set(0.05, 0.05, 0.05);
-                    let robotSize = new self.$THREE.Box3();
-                    robotSize.expandByObject(mesh);
-                    //添加货车
-                    var car1 = this.getMould.car;
-                    let car = car1.clone();
-                    car.scale.set(0.05, 0.05, 0.05);
-                    car.name = `car`;
-                    car.position.copy(mesh.getWorldPosition());
-                    let height = robotSize.max.y - robotSize.min.y;//机器人高度
-                    // group.position.x = self.stationOptions[obj.index].stationSite.x + x;
-                    group.position.x = currentX + 20
-                    group.position.y = self.stationOptions[obj.index].stationSite.y; //中心点为机器人中间
-                    // group.position.z = self.stationOptions[obj.index].stationSite.z - (robotSize.max.x - robotSize.min.x);
-                    group.position.z = - 50
-                    mesh.position.y += height / 2; //中心点为机器人中间
-
-                    let size = robotSize.getSize();
-                    var geometry = new self.$THREE.BoxGeometry(size.z / 4 - 50, height - 15, size.x);
-                    var material = new self.$THREE.MeshBasicMaterial({
-                        // color: 0x00ff00,
-                        transparent: true,
-                        opacity: 0,
+                for (let num in picklist) {
+                    let floor = parseInt(picklist[num].y / (this.sceneOption[0].stationNum * 6)) //判断是第几层
+                    let site = this.zConvertnum(picklist[num].y)
+                    let station = this.scene.getObjectByName(`workStation${floor}-${site.num}`)
+                    let currentX = this.scene.getObjectByName(`station${site.num}-${picklist[num].x}`)
+                    loader.load(process.env.BASE_URL + 'mould/Robotaction/Robotaction.gltf', gltf => {
+                        let mesh = gltf.scene;
+                        let group = new self.$THREE.Group();
+                        let x = 80
+                        group.name = picklist[num].code;
+                        station.add(group);
+                        mesh.scale.set(0.05, 0.05, 0.05);
+                        let robotSize = new self.$THREE.Box3();
+                        robotSize.expandByObject(mesh);
+                        //添加货车
+                        var car1 = this.getMould.car;
+                        let car = car1.clone();
+                        car.scale.set(0.03, 0.05, 0.03);
+                        car.name = `car`;
+                        car.position.copy(mesh.getWorldPosition());
+                        let height = robotSize.max.y - robotSize.min.y;//机器人高度
+                        let order = parseInt(picklist[num].y / 6)
+                        group.position.x = currentX.position.x + 70
+                        group.position.y = self.stationOptions[order].stationSite.y+10; //中心点为机器人中间
+                        group.position.z = -50
+                        mesh.position.y += height / 2; //中心点为机器人中间
+                        let size = robotSize.getSize();
+                        var geometry = new self.$THREE.BoxGeometry(size.z / 4 - 50, height - 15, size.x);
+                        var material = new self.$THREE.MeshBasicMaterial({
+                            // color: 0x00ff00,
+                            transparent: true,
+                            opacity: 0,
+                        });
+                        var robotBox = new self.$THREE.Mesh(geometry, material);
+                        robotBox.name = 'box';
+                        robotBox.position.set(0, mesh.position.y, 0);
+                        group.add(robotBox);
+                        self.clickRobots.push(robotBox);
+                        car.position.x -= 115;
+                        car.position.z +=30 ;
+                        group.add(mesh);
+                        group.add(car);
+                        group.rotateState = false
+                        let mixer = new self.$THREE.AnimationMixer(gltf);
+                        self.mixer[num] = new self.$THREE.AnimationMixer(mesh);
+                        self.mixer[num].name = group.name
+                        self.mixerAction[num] = self.mixer[num].clipAction(gltf.animations[0]);
+                        self.mixerAction[num].name = group.name
                     });
-                    var robotBox = new self.$THREE.Mesh(geometry, material);
-                    robotBox.name = 'box';
-                    robotBox.position.set(0, mesh.position.y, 0);
-                    group.add(robotBox);
-                    self.clickRobots.push(robotBox);
-                    car.position.x -= 195;
-                    car.position.z += 50;
-                    group.add(mesh);
-                    group.add(car);
-
-                    obj.index += 2;
-                    let mixer = new self.$THREE.AnimationMixer(gltf);
-                    self.mixer[num] = new self.$THREE.AnimationMixer(mesh);
-                    self.mixer[num].name = group.name
-                    // self.$store.commit('mould/setAnimation',{mixer,index:self.key})
-                    // mixer.clipAction 返回一个可以控制动画的AnimationAction对象  参数需要一个AnimationClip 对象
-                    // 告诉AnimationAction启动该动作
-                    // let action = self.mixer.clipAction(gltf.animations[1]);
-                    // action.play();
-                    self.mixerAction[num] = self.mixer[num].clipAction(gltf.animations[0]);
-                    self.mixerAction[num].name = group.name
-                    // console.log(self.mixerAction)
-                });
+                }
             },
             // 初始化轨迹球控件
             initControls() {
@@ -390,13 +390,22 @@
             actionAnimate(event) {
                 let self = this;
                 self.pickActionList.push(event);
-                debugger
-                // self.startAction=true
+            },
+            animateFinish(num){
+                this.animateFinishNum++
+                if( this.animateFinishNum==this.animateData.length){
+                    setTimeout( ()=> {
+                        this.$store.commit('index/setplayState', false);
+                        this.reload();
+                    }, 1000)
+                    this.$store.commit('index/setFirstPlay', true);
+                    this.setMoveTime(0);
+                    this.setTotalTime(0);
+                }
             },
             findMixerAction(name) {
                 for (let i = 0; i < this.mixerAction.length; i++) {
                     let m = this.mixerAction[i]
-                    // console.log('m', m)
                     if (m.name == name) {
                         return i
                     }
@@ -413,7 +422,7 @@
             },
             robotRotateAnimate(stationIndex, people, x, y, bool) {
                 if (stationIndex == x) {
-                    if(bool === false) {
+                    if (bool === false) {
 
                         let rotate = {
                             x: people.position.x,
@@ -430,13 +439,10 @@
                             people.rotateY(Math.PI);
                         }, 250)
                         rotateAction.start()
-
-                        // people.position.x += 120
-                        // people.rotateY(Math.PI)
                         bool = true;
                     }
-                } else if(stationIndex == y){
-                    if(bool === true) {
+                } else if (stationIndex == y) {
+                    if (bool === true) {
                         let rotate = {
                             x: people.position.x,
                         }
@@ -459,8 +465,6 @@
             getPeopleIndex(stationIndex) {
                 let result = []
                 let index = -1
-                // console.log('this.modelData.shelve', this.modelData.shelve)
-                // debugger
                 for (let i = 0; i < this.modelData[0].shelve.length; i++) {
                     let model = this.modelData[0].shelve[i]
                     if (model.name === 'station') {
@@ -478,36 +482,40 @@
             },
             pickAnimate(event) {
                 let self = this;
-                // console.log(' event', event, event.index, parseInt(event.index / 2));
-                let num = parseInt(event.index / 2);
                 let stationIndex = event.stationIndex
-                let wallIndex = 0;
-                let peopleIndex = this.getPeopleIndex(stationIndex)
-                if (peopleIndex === -1) {
+                let people = this.scene.getObjectByName(event.people.code)
+                if (stationIndex < event.people.x) {
+                    people.rotateY(Math.PI)
+                    people.rotateState = true
+                } else {
+                    if (people.rotateState) {
+                        people.rotateY(Math.PI)
+                        people.rotateState = false
+                    }
+                }
+                let zWidth = event.box.getWorldPosition().z - people.getWorldPosition().z
+                let index = self.findMixerAction(event.people.code)
+                self.mixerIndex.push(index);
+                if (!zWidth) {
+                    runPick()
                     return
                 }
-                // let people = self.scene.children.find(ele => ele.name == `people${num}-${peopleIndex}`);
-                let people = this.scene.getObjectByName(`people${num}-${peopleIndex}`)
-                // this.robotRotateAnimate(stationIndex, people, -4, -3, this.isRotate1)
-                // this.robotRotateAnimate(stationIndex, people, -2, -1, this.isRotate2)
-                // debugger
-                let zWidth = event.box.getWorldPosition().z - people.getWorldPosition().z
                 let zStart = [people.position.z, people.position.z + zWidth];
                 let ahead = self.psbAnimateX(people, zStart, 2000);
                 ahead.start();
-                let index = self.findMixerAction(`people${num}-${peopleIndex}`)
-                debugger
-                self.mixerIndex.push(index);
                 ahead.onComplete(() => {
+                    runPick()
+                });
+
+                function runPick() {
                     self.mixerAction[index].play();
                     self.mixer[index].addEventListener('loop', e => {
                         self.mixerAction[index].stop();
                         self.$set(self.pickFinish, event.index, event);
-                        // self.pickActionExecuteIndex += 1;
                         self.pickActionList.shift();
+                        self.mixerIndex.splice(index, 1);
                     });
-                });
-
+                }
             },
             // 拣货机器人动画(X方向)
             psbAnimateX(group, params, duration) {
@@ -516,7 +524,6 @@
                 });
                 let xMotion = new TWEEN.Tween(rota);
                 xMotion.to({
-                    // x:!params[1] ? 0 : params[0] + params[1]
                     z: params[1]
                 }, duration, TWEEN.Easing.Sinusoidal.InOut);
                 xMotion.onUpdate(function () {
@@ -540,9 +547,9 @@
                 for (let i = 0; i < parseInt(this.sceneOption[0].stationNum); i++) {
                     for (let j = 0; j < parseInt(this.sceneOption[0].shelvesUnitNum) - 1; j++) {
                         let shelve = this.scene.getObjectByName(`shelves${i}-${j}`)
-                        if(shelve !== undefined) {
+                        if (shelve !== undefined) {
                             shelve.traverse((obj) => {
-                                if(obj.isMesh) {
+                                if (obj.isMesh) {
                                     obj.material = material
                                 }
                             })
@@ -557,19 +564,6 @@
                 self.mixerIndex.map((e, index) => {
                     self.mixer[e] && self.mixer[e].update(time);
                 });
-                // 监听相机位置变化
-                // let position = this.camera.position
-                // let bool1 = (position.y < 400 && position.y > 0) && (position.x > -1800 && position.x < 1400)
-                // let bool2 = (position.y < 0 || position.y > 400) && (position.x < -1800 || position.x > 1400)
-                // if(bool1 && this.sceneOption.length > 0) {
-                //     this.setMeshOpacity(0)
-                // } else if(bool2 && this.sceneOption.length > 0) {
-                //     this.setMeshOpacity(0.5)
-                // } else if(this.sceneOption.length > 0) {
-                //     this.setMeshOpacity(0.5)
-                // }
-                // this.camera.updateMatrixWorld();
-                // this.stats.update();
                 // 线条移动
                 this.linesMove()
                 // psb 机器人的第一视角(跟随 psb 移动)
@@ -622,6 +616,7 @@
                 if (this.getFirstPlay) {
                     let data = animateDatas.flat();
                     for (let i in data) {
+                        if (data[i].robotType == 'PST') continue;
                         let end = data[i].endPoint;
                         let start = data[i].startPoint;
                         let params = {//计算运动时间对象
@@ -629,11 +624,10 @@
                             yStart: start.y,
                             xEnd: end.x,
                             xStart: start.x,
-                            order: start.z - 1,
                             containerCode: data[i].containerCode,
+                            index:data[i].index   //动画数据index
                         };
                         let value = this.calculateTime(params);
-                        // this.log('total time ', value)
                         this.$store.commit('index/setProgress', {attribute: 'totalTime', value})
                     }
                 }
@@ -641,96 +635,50 @@
             // 处理动画数据
             handleAnimateData(data) {
                 let result = data;
-
                 result.forEach((item) => {
-                    for (let i = 0; i < this.stations.length; i++) {
-                        let model = this.stations[i]
-                        if (item.startPoint.x === model.x) {
-                            item.startPoint.x = -model.x
-                        }
-                        if (item.endPoint.x === model.x) {
-                            item.endPoint.x = -model.x
-                        }
-                    }
-                    // if (item.startPoint.x > 26) {
-                    //     item.startPoint.x = item.startPoint.x - 26
-                    // } else {
-                    //     if (item.startPoint.x == 4) {
-                    //         item.startPoint.x = -4
-                    //     } else if (item.startPoint.x == 14) {
-                    //         item.startPoint.x = -3
-                    //     } else if (item.startPoint.x == 16) {
-                    //         item.startPoint.x = -2
-                    //     } else if (item.startPoint.x == 26) {
-                    //         item.startPoint.x = -1
-                    //     } else if (item.startPoint.x == 2) {
-                    //         item.startPoint.x = -5
-                    //     }
-                    // }
-                    // if (item.endPoint.x > 26) {
-                    //     item.endPoint.x = item.endPoint.x - 26
-                    // } else {
-                    //     if (item.endPoint.x == 4) {
-                    //         item.endPoint.x = -4
-                    //     } else if (item.endPoint.x == 14) {
-                    //         item.endPoint.x = -3
-                    //     } else if (item.endPoint.x == 16) {
-                    //         item.endPoint.x = -2
-                    //     } else if (item.endPoint.x == 26) {
-                    //         item.endPoint.x = -1
-                    //     } else if (item.endPoint.x == 2) {
-                    //         item.endPoint.x = -5
-                    //     }
-                    // }
+                    item.forEach(list => {
+                        list.uuNm=this.uuid()
+                    })
+
                 })
-                // console.log('reuslt', result)
-                // let rs = []
-                // for (let i = 0; i < 4; i++) {
-                //     rs.push(result[i])
-                // }
-                // // console.log('rssssssss', rs)
-                result.splice(0, 3)
-                return [result]
+                return result
             },
             getStockData(date) {
-                if(this.getResData === null) {
-                    this.$get('dCoreData', { project_id: sessionStorage.getItem('projectId')}).then(res => {
-                        if(res.code == '200') {
+                if (this.getResData === null) {
+                    this.$get('dCoreData', {project_id: sessionStorage.getItem('projectId')}).then(res => {
+                        if (res.code == '200') {
                             let list = this.currentProjectData.projectDetail.sceneOption;
                             let firstStationNum = parseInt(list[0].stationNum);
-                            let reqTimes = this.getReqTimes
-                            for (let i = 0; i < reqTimes.length; i++) {
-                                let req = reqTimes[i]
-                                let params = {
-                                    warehouseID: this.whalehouseID,
-                                    startTime: req.start,
-                                    endTime: req.end,
-                                    firstStationNum,
-                                    project_id: this.currentProjectData.id,
-                                    id: sessionStorage.getItem('projectId'),
-                                    url_param: this.requestUrl,
-                                    sort: i + 1,
-                                    total_startTime: date.s1,
-                                    total_endTime: date.s2,
-                                };
-                                this.$get('gStockData', params).then(res => {
-                                    this.responses.push(res)
-                                })
-                            }
+                            let params = {
+                                warehouseID: this.whalehouseID,
+                                startTime: date.s1,
+                                endTime: date.s2,
+                                firstStationNum,
+                                id: sessionStorage.getItem('projectId'),
+                                url_param: this.requestUrl,
+                                sort: 1,
+                            };
+                            this.$get('gRobotData', params).then(res => {
+                                if (res.code == '200' && res.data.length) {
+                                    this.getResData = res.data
+                                    this.handleData(res.data);
+                                    this.animateData = this.handleAnimateData(res.data);
+                                    // this.$set(this,'animateData',res.data)
+                                    // this.animateData =res.data;
+
+                                    this.$store.commit('index/setFirstPlay', false);
+                                } else {
+                                    this.debounce(5000)()
+                                }
+                            })
+
                         } else {
-                            this.$message({
-                                showClose: true,
-                                message: '该时间段无任务',
-                                type: 'warning'
-                            });
-                            this.$store.commit('index/setplayState', false);
-                            this.$store.commit('index/setFirstPlay', true);
+                            this.debounce(5000)()
                         }
                     })
                 } else {
                     this.handleData(this.getResData);
-                    this.animateData = this.handleAnimateData(this.getResData);
-                    this.animateData = this.getResData;
+                    this.animateData=this.handleAnimateData(this.getResData)
                 }
             },
             // 运动坐标转换 animateConvert(name, list) { play(name, list) {
@@ -741,184 +689,676 @@
                 let list = this.currentProjectData.projectDetail.sceneOption;
                 this.log('list', list)
                 let projectId = list[1] && list[1].id || '';
-                let mockData = [[{
-                    containerCode: "PSLX-10000",
-                    endPoint: {x: 16, y: 0, z: 4},
-                    endTime: "May 29, 2020 11:38:24 AM",
-                    index: 0,
-                    letChangeTrack: "0.0",
-                    letDownFlag: "1.0",
-                    moveActionID: "303992850427674642",
-                    outOrderID: [],
-                    regionID: "P-PMS01",
-                    robotCode: "cai_psb_04",
-                    robotType: "PSB",
-                    startPoint: {x: 46, y: 1, z: 4},
-                    startTime: "May 29, 2020 11:38:05 AM",
-                    taskType: "PS鲸仓拣选",
-                }, {
-                    containerCode: "PSLX-120003",
-                    endPoint: {x: 16, y: 0, z: 2},
-                    endTime: "May 29, 2020 11:33:31 AM",
-                    index: 0,
-                    letChangeTrack: "0.0",
-                    letDownFlag: "1.0",
-                    moveActionID: "303992346893090834",
-                    outOrderID: [],
-                    regionID: "P-PMS01",
-                    robotCode: "cai_psb_02",
-                    robotType: "PSB",
-                    startPoint: {x: 70, y: 1, z: 2},
-                    startTime: "May 29, 2020 11:33:09 AM",
-                    taskType: "PS鲸仓拣选",
-                }, {
-                    containerCode: "PSLX-120000",
-                    endPoint: {x: 26, y: 0, z: 5},
-                    endTime: "May 29, 2020 11:33:09 AM",
-                    index: 0,
-                    letChangeTrack: "0.0",
-                    letDownFlag: "1.0",
-                    moveActionID: "303992346809204754",
-                    outOrderID: [],
-                    regionID: "P-PMS01",
-                    robotCode: "cai_psb_05",
-                    robotType: "PSB",
-                    startPoint: {x: 41, y: 1, z: 5},
-                    startTime: "May 29, 2020 11:32:51 AM",
-                    taskType: "PS鲸仓拣选" ,
-                }, {
-                    containerCode: "PSLX-120001",
-                    endPoint: {x: 16, y: 0, z: 5},
-                    endTime: "May 29, 2020 11:38:58 AM",
-                    index: 0,
-                    letChangeTrack: "0.0",
-                    letDownFlag: "1.0",
-                    moveActionID: "303992850293456914",
-                    outOrderID: [],
-                    regionID: "P-PMS01",
-                    robotCode: "cai_psb_05",
-                    robotType: "PSB",
-                    startPoint: {x: 43, y: 1, z: 5},
-                    startTime: "May 29, 2020 11:38:39 AM",
-                    taskType: "PS鲸仓拣选",
-                }, {
-                    containerCode: "PSLX-120003",
-                    endPoint: {x: 53, y: 1, z: 4},
-                    endTime: "May 29, 2020 11:34:35 AM",
-                    index: 0,
-                    letChangeTrack: "0.0",
-                    letDownFlag: "1.0",
-                    moveActionID: "303992399774875666",
-                    regionID: "P-PMS01",
-                    robotCode: "cai_psb_04",
-                    robotType: "PSB",
-                    startPoint: {x: 26, y: 0, z: 4},
-                    startTime: "May 29, 2020 11:34:15 AM",
-                    taskType: "回箱",
-                },
+                let mockData = [[
+                        {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 5, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:38:39",
+                        "endTime": "2021-01-11 16:38:41",
+                        "outOrderID": [],
+                        "moveActionID": "394",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0901",
+                        "startPoint": {"x": 5, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:38:43",
+                        "endTime": "2021-01-11 16:38:45",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220046", "qty": 4}]}],
+                        "moveActionID": "396",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }
+                    , {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:25",
+                        "endTime": "2021-01-11 16:39:27",
+                        "outOrderID": null,
+                        "moveActionID": "398",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0901",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 5, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:29",
+                        "endTime": "2021-01-11 16:39:32",
+                        "outOrderID": null,
+                        "moveActionID": "400",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 5, "y": 1, "z": 1},
+                        "endPoint": {"x": 7, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:35",
+                        "endTime": "2021-01-11 16:39:37",
+                        "outOrderID": [],
+                        "moveActionID": "402",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0903",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:40",
+                        "endTime": "2021-01-11 16:39:42",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220051", "qty": 4}]}],
+                        "moveActionID": "404",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:40:18",
+                        "endTime": "2021-01-11 16:40:20",
+                        "outOrderID": null,
+                        "moveActionID": "406",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0903",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 7, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:40:22",
+                        "endTime": "2021-01-11 16:40:24",
+                        "outOrderID": null,
+                        "moveActionID": "408",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    },
+                    {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 18, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:54",
+                        "endTime": "2021-01-11 16:49:56",
+                        "outOrderID": [],
+                        "moveActionID": "410",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:56",
+                        "endTime": "2021-01-11 16:49:59",
+                        "outOrderID": null,
+                        "moveActionID": "411",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 18, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:59",
+                        "endTime": "2021-01-11 16:50:01",
+                        "outOrderID": [],
+                        "moveActionID": "412",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }
+                    , {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:03",
+                        "endTime": "2021-01-11 16:50:05",
+                        "outOrderID": null,
+                        "moveActionID": "414",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }
+                    ,
+                    {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 2, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:07",
+                        "endTime": "2021-01-11 16:50:09",
+                        "outOrderID": [],
+                        "moveActionID": "416",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 2, "y": 1, "z": 2},
+                        "endPoint": {"x": 1, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:11",
+                        "endTime": "2021-01-11 16:50:13",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220047", "qty": 4}]}],
+                        "moveActionID": "418",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 1, "y": 1, "z": 2},
+                        "endPoint": {"x": 1, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:11",
+                        "endTime": "2021-01-11 16:51:13",
+                        "outOrderID": null,
+                        "moveActionID": "420",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 1, "y": 1, "z": 2},
+                        "endPoint": {"x": 18, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:15",
+                        "endTime": "2021-01-11 16:51:17",
+                        "outOrderID": null,
+                        "moveActionID": "422",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:17",
+                        "endTime": "2021-01-11 16:51:20",
+                        "outOrderID": null,
+                        "moveActionID": "423",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": "",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 18, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:20",
+                        "endTime": "2021-01-11 16:51:22",
+                        "outOrderID": null,
+                        "moveActionID": "424",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:51:24",
+                        "endTime": "2021-01-11 16:51:26",
+                        "outOrderID": null,
+                        "moveActionID": "426",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 8, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:51:28",
+                        "endTime": "2021-01-11 16:51:30",
+                        "outOrderID": null,
+                        "moveActionID": "428",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS02",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 5, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:38:39",
+                        "endTime": "2021-01-11 16:38:41",
+                        "outOrderID": [],
+                        "moveActionID": "394",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0901",
+                        "startPoint": {"x": 5, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:38:43",
+                        "endTime": "2021-01-11 16:38:45",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220046", "qty": 4}]}],
+                        "moveActionID": "396",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:25",
+                        "endTime": "2021-01-11 16:39:27",
+                        "outOrderID": null,
+                        "moveActionID": "398",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0901",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 5, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:29",
+                        "endTime": "2021-01-11 16:39:32",
+                        "outOrderID": null,
+                        "moveActionID": "400",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 5, "y": 1, "z": 1},
+                        "endPoint": {"x": 7, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:35",
+                        "endTime": "2021-01-11 16:39:37",
+                        "outOrderID": [],
+                        "moveActionID": "402",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0903",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:39:40",
+                        "endTime": "2021-01-11 16:39:42",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220051", "qty": 4}]}],
+                        "moveActionID": "404",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 2, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:40:18",
+                        "endTime": "2021-01-11 16:40:20",
+                        "outOrderID": null,
+                        "moveActionID": "406",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0903",
+                        "startPoint": {"x": 2, "y": 1, "z": 1},
+                        "endPoint": {"x": 7, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:40:22",
+                        "endTime": "2021-01-11 16:40:24",
+                        "outOrderID": null,
+                        "moveActionID": "408",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 7, "y": 1, "z": 1},
+                        "endPoint": {"x": 18, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:54",
+                        "endTime": "2021-01-11 16:49:56",
+                        "outOrderID": [],
+                        "moveActionID": "410",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:56",
+                        "endTime": "2021-01-11 16:49:59",
+                        "outOrderID": null,
+                        "moveActionID": "411",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 18, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:49:59",
+                        "endTime": "2021-01-11 16:50:01",
+                        "outOrderID": [],
+                        "moveActionID": "412",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }
+                    , {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:03",
+                        "endTime": "2021-01-11 16:50:05",
+                        "outOrderID": null,
+                        "moveActionID": "414",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 2, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:07",
+                        "endTime": "2021-01-11 16:50:09",
+                        "outOrderID": [],
+                        "moveActionID": "416",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "PS鲸仓拣选",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 2, "y": 1, "z": 2},
+                        "endPoint": {"x": 1, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:50:11",
+                        "endTime": "2021-01-11 16:50:13",
+                        "outOrderID": [{"orderNo": "CK20210111000020", "item": [{"skuId": "110220047", "qty": 4}]}],
+                        "moveActionID": "418",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 1, "y": 1, "z": 2},
+                        "endPoint": {"x": 1, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:11",
+                        "endTime": "2021-01-11 16:51:13",
+                        "outOrderID": null,
+                        "moveActionID": "420",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 1, "y": 1, "z": 2},
+                        "endPoint": {"x": 18, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:15",
+                        "endTime": "2021-01-11 16:51:17",
+                        "outOrderID": null,
+                        "moveActionID": "422",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:17",
+                        "endTime": "2021-01-11 16:51:20",
+                        "outOrderID": null,
+                        "moveActionID": "423",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": "",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 18, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 2},
+                        "startTime": "2021-01-11 16:51:20",
+                        "endTime": "2021-01-11 16:51:22",
+                        "outOrderID": null,
+                        "moveActionID": "424",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }, {
+                        "robotCode": "2jc0083",
+                        "robotType": "PST",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 20, "y": 1, "z": 2},
+                        "endPoint": {"x": 20, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:51:24",
+                        "endTime": "2021-01-11 16:51:26",
+                        "outOrderID": null,
+                        "moveActionID": "426",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": "3jc0002",
+                        "index": 0
+                    }, {
+                        "robotCode": "3jc0002",
+                        "robotType": "PSB",
+                        "taskType": "to_position",
+                        "containerCode": "CD0902",
+                        "startPoint": {"x": 20, "y": 1, "z": 1},
+                        "endPoint": {"x": 8, "y": 1, "z": 1},
+                        "startTime": "2021-01-11 16:51:28",
+                        "endTime": "2021-01-11 16:51:30",
+                        "outOrderID": null,
+                        "moveActionID": "428",
+                        "letChangeTrack": "0.0",
+                        "letDownFlag": "1.0",
+                        "regionID": "P-PMS01",
+                        "psbCode": null,
+                        "index": 0
+                    }
                 ]]
+                // self.animateData = mockData //模拟数据
+                // if(  self.animateData.length>0) return
+                // self.handleData(mockData);
+                // self.animateData = mockData //模拟数据
+                // self.$store.commit('index/setFirstPlay', false);
                 if (hasData) {
                     self.handleData(this.playedAnimateData);
-                    self.animateData = this.handleAnimateData(this.playedAnimateData);
-                    // console.log('playedAnimateData', this.playedAnimateData)
+                    self.animateData = this.handleAnimateData(this.playedAnimateData);  //真实数据
+                    // this.$set(this,'animateData',this.playedAnimateData)
 
-                    // self.animateData = this.handleAnimateData(mockData);
-                    self.$store.commit('index/setFirstPlay', false);
-                } else {
-                    this.loading = true
                     // self.handleData(mockData);
-                    // this.animateData = mockData
+                    // self.animateData = mockData //模拟数据
+                    self.$store.commit('index/setFirstPlay', false);
+
+                } else {
+                    this.loading =self.firstPlay
                     this.animateData = []
                     this.getStockData(date)
-                    // self.$get('gStockData', params).then(res => {
-                    //     // res.data.moveTasks
-                    //     let list = [];
-                    //     if (res.code == '200' && res.data.length) {
-                    //         self.handleData(res.data);
-                    //         self.animateData = this.handleAnimateData(res.data);
-                    //         // self.animateData = this.handleAnimateData(mockData);
-                    //
-                    //     } else {
-                    //         self.$message({
-                    //             showClose: true,
-                    //             message: '该时间段无任务',
-                    //             type: 'warning'
-                    //         });
-                    //         self.$store.commit('index/setplayState', false);
-                    //         self.$store.commit('index/setFirstPlay', true);
-                    //     }
-                    // });
                 }
-                // self.$store.commit('index/setplayState', false);
-                // self.$store.commit('index/setFirstPlay', true);
 
-                // self.animateData = [
-                //     [{
-                //         containerCode: 'S060',
-                //         endPoint: {x: 4, y: 0, z: 1},
-                //         endTime: 'Apr 24, 2020 4:43:06 PM',
-                //         index: 0,
-                //         letChangeTrack: '0.0',
-                //         letDownFlag: '1.0',
-                //         moveActionID: '298950087449509915',
-                //         outOrderID: 'uniMove_298950087415955483',
-                //         regionID: 'P-PMS01',
-                //         robotCode: 'sim_psb_02',
-                //         robotType: 'PSB',
-                //         startPoint: {x: 13, y: 0, z: 1},
-                //         startTime: 'Apr 24, 2020 4:42:18 PM',
-                //         taskType: '抓箱',
-                //     }, {
-                //     containerCode: 'S060',
-                //     endPoint: {x: 13, y: 0, z: 1},
-                //     endTime: 'Apr 24, 2020 4:43:06 PM',
-                //     index: 0,
-                //     letChangeTrack: '0.0',
-                //     letDownFlag: '1.0',
-                //     moveActionID: '298950087449509915',
-                //     outOrderID: 'uniMove_298950087415955483',
-                //     regionID: 'P-PMS01',
-                //     robotCode: 'sim_psb_02',
-                //     robotType: 'PSB',
-                //     startPoint: {x: 4, y: 0, z: 1},
-                //     startTime: 'Apr 24, 2020 4:42:18 PM',
-                //     taskType: '回箱',
-                // }]
-                // ]
 
-                // self.$store.commit('index/setplayState', false);
-                // self.$store.commit('index/setFirstPlay', true);
-                // self.$get('gStockData', params).then(res => {
-                //     // res.data.moveTasks
-                //     let list = [];
-                //     if (res.code == '200' && res.data.length) {
-                //         self.animateData = res.data;
-                //         let data = self.animateData.flat();
-                //         for (let i in data) {
-                //             console.log('data', data[i])
-                //             let end = data[i].endPoint;
-                //             let start = data[i].startPoint;
-                //             let params = {//计算运动时间对象
-                //                 yEnd: end.y,
-                //                 yStart: start.y,
-                //                 xEnd: end.x,
-                //                 xStart: start.x,
-                //                 order: start.z - 1
-                //             };
-                //             let value = this.calculateTime(params);
-                //             this.$store.commit('index/setProgress', {attribute: 'totalTime', value})
-                //         }
-                //     } else {
-                //         self.$message({
-                //             showClose: true,
-                //             message: '该时间段无任务',
-                //             type: 'warning'
-                //         });
-                //         self.$store.commit('index/setplayState', false);
-                //         self.$store.commit('index/setFirstPlay', true);
-                //
-                //     }
-                // });
             },
             // 计算运动时间
             /*
@@ -931,10 +1371,14 @@
                     grab = 0;
                     set = 0;
                 }
+                if(this.scene.getObjectByName(`shelve${params.index}-${params.xEnd}`)?.modelType){
+                    set=0
+                }
                 // let move= Math.round((params.xEnd-params.xStart)*0.245+7 ) //移动时间
                 let move = params.xEnd - params.xStart;  //计算psb移动时间
-                move = ~~(Math.abs(move) * 0.245 + 7 + 0.5);
-                // debugger
+                move = params.xEnd - params.xStart==0?0:~~(Math.abs(move) * 0.245 + 7 + 0.5);
+                console.log('params.xEnd',params.xStart,params.xEnd, 'grab',grab , 'move',move , 'set',set)
+                //
                 return grab + move + set
             },
             coordinateConvert(list) {
@@ -973,18 +1417,14 @@
                 let floor1 = new self.$THREE.Mesh(floorGeometry1, floorMaterial);
                 floor1.rotateX(Math.PI / 2);
                 floor1.position.y = 185;
-                floor1.position.x = position.x - (heightF2 - 150) / 2 + 150;
-                floor1.position.z = position.z - widthF2 / 2 + 150;
-                // floor1.position.x = height / 2 - heightF2 / 2 + 100;
-                // floor1.position.z = width / 2 - widthF2 / 2;
-
+                floor1.position.x = position.x - (heightF2 - 150) / 2;
+                floor1.position.z = position.z - widthF2 / 2;
                 self.scene.add(floor1);
             },
 
             createGround() {
                 let loader = new this.$THREE.TextureLoader();
                 let self = this;
-                // let shelvesF1 = this.sceneOption[0].shelvesUnitNum
                 // 单位 m 转换 mm 乘以缩放倍数
                 // 加载贴图
                 let groundGeo = new this.$THREE.PlaneBufferGeometry(100000, 100000);
@@ -993,14 +1433,12 @@
                     // opacity: 0.5,
                     // transparent: true,
                 });
-                // groundMat.color.setHSL(0.55, 0.5, 0.03);
+                groundMat.color.setHSL(0.55, 0.5, 0.03);
                 let ground = new this.$THREE.Mesh(groundGeo, groundMat);
                 ground.position.y = -33;
                 ground.rotation.x = -Math.PI / 2;
                 ground.receiveShadow = true;
                 self.scene.add(ground);
-                // let groundGeo = new this.$THREE.PlaneBufferGeometry(60000, 60000);
-                // this.initObject();
                 var gridHelper = new this.$THREE.GridHelper(100000, 100, 0x13131c, 0x414145);
                 self.scene.add(gridHelper);
 
@@ -1009,12 +1447,11 @@
             createFloor(width, height) {
                 let loader = new this.$THREE.TextureLoader();
                 let self = this;
-                // let shelvesF1 = this.sceneOption[0].shelvesUnitNum
                 // 单位 m 转换 mm 乘以缩放倍数
-                if(width < 20) {
+                if (width < 20) {
                     width = 30
                 }
-                if(height < 20) {
+                if (height < 20) {
                     height = 30
                 }
                 width = width * 2000 * 0.05;
@@ -1033,7 +1470,7 @@
                     // let stationNum = self.sceneOption[0].stationNum - 1
                     // let shelvesNum = self.sceneOption[0].shelvesUnitNum
                     let model = self.$refs.scene[0].getModelObj(0)
-                    let firstName = model.firstObj.name
+                    let firstName = model.firstObj.name == 'pickWay' ? 'shelve' : model.firstObj.name
                     let lastName = model.lastObj.name
                     let firstX = model.firstObj.x
                     let lastX = model.lastObj.x + model.lastObj.num - 1
@@ -1186,7 +1623,13 @@
                     }
                 }
             },
-            // 初始化 PointerLockControls
+            isRangeIn(str, maxnum, minnum) {
+                var num = parseFloat(str);
+                if (num <= maxnum && num >= minnum) {
+                    return true;
+                }
+                return false;
+            },
             initLockControl() {
                 this.lockControls = new PointerLockControls(this.camera, document.body);
                 let self = this;
@@ -1222,18 +1665,324 @@
                 for (let i = 0; i < this.modelData[0].shelve.length; i++) {
                     let model = this.modelData[0].shelve[i]
                     let name = model.name
-                    if(name === 'station') {
+                    if (name === 'station') {
                         this.stations.push(model)
                     }
                 }
             },
+            debounce(delay) {
+                let self = this
+                return function () {
+                    if (self.timer !== null) {
+                        clearTimeout(self.timer)
+                    }
+                    self.timer = setTimeout(() => {
+                        self.$message({
+                            showClose: true,
+                            message: '该时间段无任务',
+                            type: 'warning'
+                        });
+                        self.loading = false
+                        self.$store.commit('index/setplayState', false);
+                        self.$store.commit('index/setFirstPlay', true);
+                    }, delay)
+                }
+            },
+            //添加PST、PST轨道
+            addpstAndTrack(x, y, posX, floor) {
+                let self = this
+                let group = new this.$THREE.Group()
+                group.name = "pstGroup"
+                let mesh = this.getMould.pstTrack.clone()
+
+                mesh.scale.set(0.05, 0.05, 0.05)
+                this.scene.add(group)
+                let trackSize = new this.$THREE.Box3()
+                let shelvesWidth = 263.9136; //货架宽度
+                let size = trackSize.expandByObject(mesh).getSize();  //pst轨道大小
+                for (let i in this.pstTrack) {
+                    let self = this
+                    let track = mesh.clone()
+                    let z = this.pstTrack[i].start.z - this.pstTrack[i].end.z + shelvesWidth //每一层货架的整体大小
+                    track.scale.z = z / size.z * 0.05
+                    group.position.set(x - size.x / 2, y, this.pstTrack[i].start.z - trackSize.expandByObject(track).getSize().z / 2) //PST轨道位置
+                    group.add(track)
+                    let num = 0
+                    for (let i = 0; i <= floor; i++) {
+                        num += this.sceneOption[floor].stationNum * 6
+                    }
+                    this.pstList.filter(e => e.x == posX).forEach((item, index) => {
+                        if (item.y <= num) {
+                            let gltf = this.getMould.pst.clone()
+                            gltf.scale.set(0.05, 0.05, 0.05)
+                            gltf.name = item.code
+                            gltf.state = true
+                            group.add(gltf)
+                            self.scene.updateMatrixWorld()
+                            let list = self.zConvertnum(item.y)
+                            let psbTrackWorldPosition = self.toWorldPosition(self.scene.getObjectByName(`psbTrack-${list.num}-${list.order}`))
+                            gltf.position.set(20, 87, psbTrackWorldPosition.z - gltf.getWorldPosition().z) //PST位置(固定在pst轨道里)
+                            self.pstList.splice(index, 1)
+
+                        }
+                    })
+                    // gltf.name = `pst${floor}${num}`
+                    // pst、pst轨道组位置
+                }
+            },
+            //获取世界坐标
+            toWorldPosition(machine) {
+                let worldPosition = new this.$THREE.Vector3();
+                machine.getWorldPosition(worldPosition)
+                return worldPosition
+            },
+            // pst运动调用函数
+            pstTween(psb, news) {
+                // 模拟
+                // pst到psbTrack-0-0工作站 第一条轨道至PSB-0-0机器人
+                let pst = this.scene.getObjectByName(news.robotCode)
+                pst.state = false
+                let psbWorld, psbName;
+                if (psb) {  //pst带psb移动
+                    psb.state = false;//设置正在运动
+                    psbWorld = this.toWorldPosition(psb)
+                    let pstTrack = this.scene.getObjectByName(`shelve${news.index}-${news.endPoint.x}`).position.x  //判断psb是否在PST上
+                    psbName = psb.name
+                    psb = this.isRangeIn(psb.position.x,pstTrack + 10,pstTrack - 10)? psb : null
+                    console.log('psb', news, psb)
+                }
+                let pstWorld = this.toWorldPosition(pst)
+                this.pstAllTween(psb, pstWorld, psbWorld, pst, news.endPoint, news.startTime, news.endTime, psbName)
+                // psbWorld.z = psbWorld.z - 18  //PST移动世界坐标以货架中心点为中心 pst的Z方向减18为货架中心点
+                // if (psbWorld.z != pstWorld.z) {  //PST位置和PSB的位置不一致时
+                //     // 运动至psb位置
+                //     let pstAction = this.pstToDestination(pst, psbWorld)
+                //     pstAction.time = news.startTime;
+                //     pstAction.start().onComplete(() => {
+                //         this.pstAllTween(psb, pstWorld, psbWorld, pst, news.endPoint, news.startTime)
+                //     })
+                // } else {
+                //     this.pstAllTween(psb, pstWorld, psbWorld, pst, news.endPoint, news.startTime)
+                // }
+            },
+            // 运动数据Z方向转换第几个工作站第几个货道
+            zConvertnum(z) {
+                // 传入的值均从1叠加
+                let num = parseInt((z - 1) / 6) //第几个工作站(从0开始)
+                let order = z % 6 ? (z % 6 - 1) : 5// 第几个货道(从0开始)
+                return {
+                    order,
+                    num
+                }
+            },
+            // psb移动到PST位置且到达目的工作站指定轨道 psb换轨
+            pstAllTween(psb, pstWorld, psbWorld, pst, end, time, endTime, psbName) {
+
+                // let finish = this.psbTopst(psb, pstWorld, psbWorld)
+                // pst、psb运动到指定的工作站轨道
+                // finish.time = time
+                // finish.start().onComplete(() => {
+                // 模拟pst和psb组
+                // 换轨到psbTrack-3-0工作站 第一条轨道
+                let list = this.zConvertnum(end.z)
+                let psbTrackWorldPosition = this.toWorldPosition(this.scene.getObjectByName(`psbTrack-${list.num}-${list.order}`))
+                var oneDate = new Date(time);
+                var twoDate = new Date(endTime);
+                let duration = twoDate.getTime() - oneDate.getTime();
+                let pstAction = this.pstToDestination(pst, psbTrackWorldPosition, psb, duration)  //pst、psb一同换轨道时 传参psb执行psb动画
+                pstAction.time = time
+                pstAction.start().onComplete(() => {
+                    if (!psb) {  //pst单独移动
+                        pst.state = true
+                        if (psbName) this.scene.getObjectByName(psbName).state = true
+                        this.$set(this.pickFinish, list.num, this.uuid());
+                        return
+                    }
+                    let psbGroup = this.scene.getObjectByName(`psb-group-${list.num}`)  //目标工作站的机器人组  命名"psb-group-index" index为下标 和工作站下标一致
+                    this.psbToStation(psb, psbGroup, list, pst, time)  //第三个参数为终点  数据 Y的值（转换成3d 的Z方向并相除取余）
+                })
+                // })
+            },
+            diffTime(date) {
+                return (this.getTime() - date.getTime()) / (24 * 60 * 60 * 1000);
+            },
+            // pst移动到指定的工作站的指定PSB位置
+            pstToDestination(pst, psbSite, psb, duration) {
+                let rotate = {
+                    z: pst.position.z,
+                    psbZ: psb ? psb.position.z : 0
+                }
+                let pstAction = new TWEEN.Tween(rotate)
+                pstAction.to({
+                    //psb轨道世界坐标减pst世界坐标加上pst目前为止（加上pst目前本地坐标是为了防止pst初始位置不是在原点 0）等于运动距离
+                    z: psbSite.z - pst.getWorldPosition().z + pst.position.z,
+                    psbZ: psb ? psbSite.z - pst.getWorldPosition().z + psb.position.z : 0,
+
+                }, duration, TWEEN.Easing.Sinusoidal.InOut);
+                const actions = new Map([
+                    ['group', () => {  //pst、psb一起移动添加psb动画参数
+                        pstAction.onUpdate(function () {
+                            pst.position.z = this.z;
+                            psb.position.z = this.psbZ;
+                        })
+                    }],
+                    ['pst', () => { //pst移动
+                        pstAction.onUpdate(function () {
+                            pst.position.z = this.z;
+                        })
+                    }],
+                ])
+                let key = psb ? 'group' : 'pst'
+                let action = actions.get(key)
+                action.call(this)
+                return pstAction
+
+            },
+            // psb移动到pst
+            // pstSite:pst世界坐标
+            // psbSite:psb世界坐标
+            // psbTopst(psb, pstSite, psbSite) {
+            //     let trackBox = new this.$THREE.Box3();
+            //     let size = trackBox.expandByObject(psb).getSize();
+            //     let rotate = {
+            //         x: psb.position.x,
+            //     }
+            //     let duration = 2500;
+            //     let psbAction = new TWEEN.Tween(rotate)
+            //     psbAction.to({
+            //         x: pstSite.x - psbSite.x + psb.position.x - size.x - 30,  //减去psb的大小（中心点在旁边的问题）和 pst轨道大小的一半（进入pst中间）
+            //     }, duration, TWEEN.Easing.Sinusoidal.InOut);
+            //     psbAction.onUpdate(function () {
+            //         psb.position.x = this.x;
+            //     });
+            //     return psbAction
+            // },
+            // psb换轨成功至添加到目的工作站
+            psbToStation(psb, psbGroup, list, pst, time) {
+                let z = this.psbSite * list.order
+                // let rotate = {
+                //     x: psb.position.x,
+                // }
+                // let duration = 2500;
+                // let psbAction = new TWEEN.Tween(rotate)
+                // psbAction.to({
+                //     x: 0,  //pst在前面的情况下 psb入工作站的位置为0  若pst在后面  psb入站位置需要计算工作站最小值的x
+                // }, duration, TWEEN.Easing.Sinusoidal.InOut);
+                // psbAction.onUpdate(function () {
+                //     psb.position.x = this.x;
+                // });
+                // psbAction.time = time
+                psb.position.z = z
+                psbGroup.add(psb)
+                psb.state = true
+                pst.state = true
+                this.$set(this.pickFinish, list.num, this.uuid());
+                // psbAction.start().onComplete(() => {
+                //     psb.position.set(0, 0, z)
+                //     psbGroup.add(psb)
+                //     console.log('psbGroup', psbGroup)
+                //
+                //     psb.state = true
+                //     pst.state = true
+                //     this.$set(this.pickFinish, list.num, this.uuid());
+                // })
+            },
+            // 生成 uuid
+            uuid() {
+                var s = [];
+                var hexDigits = "0123456789abcdef";
+                for (var i = 0; i < 36; i++) {
+                    s[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+                }
+                s[14] = "4"; // bits 12-15 of the time_hi_and_version field to 0010
+                s[19] = hexDigits.substr((s[19] & 0x3) | 0x8, 1); // bits 6-7 of the clock_seq_hi_and_reserved to 01
+                s[8] = s[13] = s[18] = s[23] = "-";
+
+                var uuid = s.join("");
+                return uuid;
+            },
+            addMachine() {
+                let self = this
+                this.$get('sorterDataReadOrWrite').then(res => {
+                    if (res.code == 200) {
+                        let data = res.data
+                        for (let i = 0, len = data.length; i < len; i++) {
+                            let d = data[i]
+                            if (d.projectId == sessionStorage.getItem('projectId')) {
+                                this.pstList = d.list.filter(e => e.type == 'pst')
+                                this.psbList = d.list.filter(e => e.type == 'psb')
+                                this.pickList = d.list.filter(e => e.type == 'pick')
+                                let psb = []
+                                for (let j in this.psbList) {
+                                    let num = parseInt((this.psbList[j].y - 1) / 6) //第几个工作站
+                                    if (!psb[num]) {
+                                        psb[num] = []
+                                    }
+                                    psb[num].push(this.psbList[j])
+                                    // this.machine[list.num]=
+                                }
+                                self.$set(self, 'machineList', psb)
+                            }
+                        }
+                        this.addPST()
+                        this.addRobot(this.pickList)
+
+                    }
+                })
+
+            },
+            addPST() {
+                let psts1 = this.modelData[0].psts || []
+                // 第一层的 pstTrack
+                // psts1 是工作站中有几个 pstTrack
+                for (let j = 0, len = psts1.length; j < len; j++) {
+                    let pst = psts1[j]
+                    let x = pst.x
+                    let pos = new this.$THREE.Vector3(0, 0, 0)
+                    let name = `shelve0-${x}`
+                    let mesh = this.scene.getObjectByName(name)
+                    let box = new this.$THREE.Box3()
+                    mesh.getWorldPosition(pos)
+                    mesh.modelType = 'pstTrack'
+                    box.expandByObject(mesh)
+                    let height = box.max.y - box.min.y
+                    // -90 因为建模的中心位置没有设置好
+                    let y = pos.y + height - 90
+                    this.addpstAndTrack(pos.x, y, x, 0)  //第一层
+                }
+                // 第一层的 pstTrack
+                // psts2 是工作站中有几个 pstTrack
+                if (this.floorNum > 1) {
+                    let psts2 = this.modelData[1]?.psts || []
+                    for (let j = 0, len = psts2.length; j < len; j++) {
+                        let pst = psts2[j]
+                        let x = pst.x
+                        let pos = new this.$THREE.Vector3(0, 0, 0)
+                        let name = `shelve1-${x}`
+                        let mesh = this.scene.getObjectByName(name)
+                        let box = new this.$THREE.Box3()
+                        mesh.getWorldPosition(pos)
+                        mesh.modelType = 'pstTrack'
+                        box.expandByObject(mesh)
+                        let height = box.max.y - box.min.y
+                        // -90 因为建模的中心位置没有设置好
+                        let y = pos.y + height - 90 + height
+                        this.addpstAndTrack(pos.x, y, x, 1)  //第一层
+                    }
+                }
+            }
         },
         watch: {
+            currentStationNum(val) {
+                if (!val || val < this.stationOptions.length) return
+                this.addMachine()
+
+
+            },
             currentProjectData: {
                 immediate: true,
                 deep: true,
                 handler(val) {
-                    // this.$store.commit('index/changeActiveProjectIndex', Number(sessionStorage.getItem('projectIndex')));
                     this.machineInfo = this._get(val, 'projectDetail.machineInfo', []);
                     this.floorNum = this._get(val, 'projectDetail.sceneOption', []).length;
                     this.sceneOption = this._get(val, 'projectDetail.sceneOption', []);
@@ -1244,28 +1993,15 @@
                     // console.log('val', val)
                     this.hasProjectData = true
                     this.$store.commit('index/setHasData', true)
-                    if(JSON.stringify(this.modelData) !== '{}') {
+                    if (JSON.stringify(this.modelData) !== '{}') {
                         this.getStationIndex()
                     }
                     if (val && val.id == sessionStorage.getItem('projectId')) {
                         let vm = this;
                         let list = val.projectDetail.sceneOption;
                         this.coordinateConvert(list);
-                        // setTimeout(() => {
-                        // 	this.animateConvert(val.pro_name, list);
-                        // }, 2000);
-                        // val.projectDetail.machineInfo[1].value,
-                        // let gridHelper = new this.$THREE.GridHelper(Math.sqrt(val.projectDetail.areaInfo[0].value * 1000), 1);
-                        // let gridHelper2 = new this.$THREE.GridHelper(Math.sqrt(val.projectDetail.areaInfo[1].value * 1000), 50);
-                        // for(let i=0;i<list.length;i++){
-                        //     let gridHelper2 = new this.$THREE.GridHelper(Math.sqrt(val.projectDetail.areaInfo[1].value * 1000), 50);
-                        //     gridHelper2.position.y=i*185
-                        //     vm.scene.add(gridHelper2);
-                        // }
                         this.$nextTick(() => {
                             this.initControls();
-                            // vm.scene.add(gridHelper);
-                            // vm.scene.add(gridHelper2);
                         });
                     }
                 },
@@ -1289,13 +2025,7 @@
                 },
                 deep: true
             },
-            sceneOption: {
-                handler(val, old) {
-                    if (val.length == 1) {
-                        // this.createGroundAndFloor();
-                    }
-                }
-            },
+
             endBox: {
                 handler(val, old) {
                     this.loadState.addBox = true;
@@ -1304,26 +2034,21 @@
             loadState: {
                 deep: true,
                 handler(val, old) {
-                    if(val.addBox) {
+                    if (val.addBox) {
                         this.loading = false
+
                     }
                 }
             },
             responses: {
                 handler(val) {
-                    if(val.length === this.getReqTimes.length) {
+                    if (val.length === this.getReqTimes.length) {
                         for (let i = 0; i < val.length; i++) {
                             let res = val[i]
-                            if(res.code == '200') {
+                            if (res.code == '200') {
                                 this.resNum = this.resNum + 1
                             } else {
-                                this.$message({
-                                    showClose: true,
-                                    message: '该时间段无任务',
-                                    type: 'warning'
-                                });
-                                this.$store.commit('index/setplayState', false);
-                                this.$store.commit('index/setFirstPlay', true);
+                                this.debounce(5000)()
                             }
                         }
                     }
@@ -1331,33 +2056,11 @@
             },
             resNum: {
                 handler(val) {
-                    if(this.getReqTimes.length === val && this.playState) {
+                    if (this.getReqTimes.length === val && this.playState) {
                         let self = this
-                        this.$get('gCoreData', { project_id: sessionStorage.getItem('projectId') }).then(res => {
-                            if(res.code == '200' && res.data) {
-                                self.getResData = res.data.proj_3D
-                                self.handleData(res.data.proj_3D);
-                                self.animateData = self.handleAnimateData(res.data.proj_3D);
-                                // self.animateData = res.data.proj_3D;
-                                self.$store.commit('index/setFirstPlay', false);
-                            } else {
-                                self.$message({
-                                    showClose: true,
-                                    message: '该时间段无任务',
-                                    type: 'warning'
-                                });
-                                self.$store.commit('index/setplayState', false);
-                                self.$store.commit('index/setFirstPlay', true);
-                            }
-                        })
+
                     } else {
-                        this.$message({
-                            showClose: true,
-                            message: '该时间段无任务',
-                            type: 'warning'
-                        });
-                        this.$store.commit('index/setplayState', false);
-                        this.$store.commit('index/setFirstPlay', true);
+                        this.debounce(5000)()
                     }
                 }
             },
@@ -1366,35 +2069,22 @@
             this.init();
 
         },
+
         beforeDestroy() {
             this.renderer = null;
             this.scene = null;
             this.camera = null;
             cancelAnimationFrame(this.animateTimer);
-            // sessionStorage.setItem('')
         },
-        created() {
-            // console.log('撒靠靠靠靠靠靠')
-            // let fromEdit = JSON.parse(sessionStorage.getItem('fromEdit'))
-            // let data = JSON.parse(localStorage.getItem('currentProjectData'))
-            // let { projectName, ...reset } = data
-            // if(fromEdit == true) {
-            //     debugger
-            //     this.currentProjectData = {
-            //         id: Number(sessionStorage.getItem('projectId')),
-            //         name: projectName,
-            //         nowTime: reset.nowTime,
-            //         projectDetail: {...reset },
-            //     }
-            //     console.log('currentProjectData', this.currentProjectData)
-            // } else {
-            //     this.currentProjectData = this.getCurrentProjectData
-            // }
-        },
+
         mounted() {
             this.initRenderer();
             this.animate();
             this.initLockControl();
+            // var geometry = new this.$THREE.PlaneBufferGeometry( 500, 200, 32 );
+            // var material = new this.$THREE.MeshBasicMaterial( {color: 0xffff00, side: this.$THREE.DoubleSide} );
+            // var plane = new this.$THREE.Mesh( geometry, material );
+            // this.scene.add( plane );
             // setTimeout(() => {
             // 	this.animateConvert();
             // }, 2000);
@@ -1405,6 +2095,7 @@
   scoped>
 
     .preview {
+
         padding: 0 2.4vw 0 1.56vw;
         position: relative;
 

@@ -20,7 +20,8 @@
             },
             animateData: {},
             pickFinish: {},
-            index: Number,
+            machineData: {},
+            index: Number,  //当前工作站index
             modelData: Object,
             hasProjectData: Boolean,
         },
@@ -69,7 +70,9 @@
                 lastName: '',
                 psbWidth: 0,
                 loadModel: false,
-
+                pstPos: [],
+                currentIndex: 0,
+                shelvesData: [],
             };
         },
 
@@ -79,6 +82,7 @@
                 this.station = new this.$THREE.Object3D();//一个工作区
                 this.station.name = this.options.name;
                 this.station.position = this.options.stationSite;
+
                 this.wallgroup = new this.$THREE.Group();//播种墙、播种板
                 this.robotTeam = new this.$THREE.Group();//货车与机器人组
                 this.station.add(this.wallgroup);
@@ -97,35 +101,34 @@
                 let initZSpace = (self.firstBox.max.z - self.firstBox.min.z - 20 - psbWidth * 6) / 7;
                 let padding = (31.96 - psbWidth) / 2; //轨道宽度31.96求机器人边距
                 let addZSpace = 0;
-                // let psbF1Len = this.$parent.modelData[0].psb.length
-                // let psbF2Len = this.$parent.modelData[0].psb.length
-
                 let robotBox = new this.$THREE.Box3()
-                // let robotGroupF1 = new self.$THREE.Group();
-                // let robotGroupF2 = new self.$THREE.Group();
-                // robotGroupF1.name = 'robot-group-f1'
-                // robotGroupF2.name = 'robot-group-f2'
-                // self.psbRobot.add(robotGroupF1)
-                // self.psbRobot.add(robotGroupF2)
-                // this.psbRobot = new this.$THREE.Group();
                 this.psbRobot = new this.$THREE.Group();
                 this.psbRobot.name = `psb-group-${this.index}`
-
-                for (let i = 0; i < psbLen; i++) {
+                this.station.add(this.psbRobot);
+                for (let i in psbLen) {
                     let robot = psb.clone();
+                    let order = parseInt(psbLen[i].y % 6); // 第几个货道
+                    order = order ? order - 1 : 5
                     let group = new self.$THREE.Group();
-                    // robot.scale.set(0.05, 0.05, 0.05);
-                    robot.name = `PSB-F1-${i}`;
+                    robot.name = psbLen[i].code; //psb名称
                     robot.state = true;
                     robotBox.expandByObject(robot)
-                    let robotWidth = robotBox.max.x - robotBox.min.x
-                    robot.position.z = -(psbWidth * i + addZSpace);
-                    robot.position.x = 0;
-                    addZSpace += initZSpace;
-                    addZSpace += padding;
-                    // console.log('self.psbRobot', this.psbRobot.name, this.index, i)
                     this.psbRobot.add(robot);
-                    // console.log('self', this.psbRobot)
+                    let robotWidth = robotBox.max.x - robotBox.min.x
+                    robot.position.z = -40.55243664515625 * order;
+
+                    this.psbRobot.position.x = this.firstBox.min.x - robotWidth;
+                    let psbWorld = new self.$THREE.Vector3();
+                    let targetWorld = new self.$THREE.Vector3();
+                    this.scenes.updateMatrixWorld()
+                    let firstObj = this.getModelObj(0).firstObj
+                    this.scenes.getObjectByName(`${firstObj.name}0-${firstObj.x}`).getWorldPosition(psbWorld)
+                    robot.position.x = psbWorld.x;
+                    let targetList = self.scenes.getObjectByName(`station${this.index}-${psbLen[i].x}`) || self.scenes.getObjectByName(`shelve${this.index}-${psbLen[i].x}`)
+                    if (targetList) { //PSB机器人X轴 往后方向位置判断
+                        targetList.getWorldPosition(targetWorld)
+                        robot.position.x = targetWorld.x - psbWorld.x
+                    }
                     robot.children[0].children[0].parent = robot;
                     group.parent = robot;
                     group.name = `claw${i}`;
@@ -136,7 +139,6 @@
                     robot.children = child;
                     //创建连接线
                     let psbSite = robot.children[0].position;
-
                     let material = new self.$THREE.LineBasicMaterial({
                         color: 0xff7f29,
                     });
@@ -155,12 +157,10 @@
                         let lineMesh = new self.$THREE.Line(lines, material);
                         robot.add(lineMesh);
                     }
-                    this.psbRobot.position.x = this.firstBox.min.x - robotWidth;
                     this.psbRobot.position.y = 0
                     let cs = robot.children[1].children[0].children
                     self.$parent.clickRobots.push(cs[16])
                 }
-                this.station.add(this.psbRobot);
             },
             /**
              * 获取 第一个和最后一个 的盒模型
@@ -175,10 +175,7 @@
                 for (let i = 0; i < shelvesData.length; i++) {
                     let model = shelvesData[i]
                     let name = model.name
-                    if(name === 'shelve') {
-                        firstObj = model
-                        break
-                    } else if(name === 'station') {
+                    if (name === 'shelve' || name === 'pickWay' || name === 'station') {
                         firstObj = model
                         break
                     }
@@ -187,10 +184,7 @@
                     let model = shelvesData[j]
                     let name = model.name
                     let num = model.num
-                    if(name === 'shelve') {
-                        lastObj = model
-                        break
-                    } else if(name === 'station') {
+                    if (name !== 'pstWay') {
                         lastObj = model
                         break
                     }
@@ -204,11 +198,14 @@
              * 添加轨道
              * i 是 modelData动画数据数组下标
              */
-            addTrack(i) {
+            addTrack(i, psts = []) {
                 const loader = new GLTFLoader();
                 let self = this
                 let modelObj = this.getModelObj(i)
                 let firstName = modelObj.firstObj.name
+                if(firstName == 'pickWay') {
+                    firstName = 'shelve'
+                }
                 let lastName = modelObj.lastObj.name
                 let firstX = modelObj.firstObj.x
                 let lastX = modelObj.lastObj.x + modelObj.lastObj.num - 1
@@ -219,7 +216,12 @@
                 let first = this.getBox(`${firstName}${index}-${firstX}`)
                 let last = this.getBox(`${lastName}${index}-${lastX}`)
                 this.firstBox = first
-                let width = first.max.x - last.min.x
+                // 14 货架与 pst货架之间的距离   psts.length 是 pst 个数
+                let x = 18.75 * psts.length
+                // if(psts.length == 2) {
+                //     x = x + 14
+                // }
+                let width =  first.max.x - last.min.x + x
                 let deep = first.max.y - first.min.y
                 loader.load(process.env.BASE_URL + 'mould/cargd.gltf', (obj) => {
                     let gltf = obj.scene;
@@ -234,7 +236,6 @@
                                 // map: texture,
                             });
                             obj.material = material
-                            // obj.material.color.set(0xc25858);
                         }
                     })
                     let trackBox = new self.$THREE.Box3();
@@ -244,21 +245,25 @@
                     gltf.rotateY(Math.PI)
                     for (let j = 0; j < 6; j++) {
                         let walltrack = gltf.clone();
-                        // for (let i in walltrack.children) {
-                        // walltrack.children[i].material.transparent = true;//是否透明
-                        // walltrack.children[i].material.opacity = 0.5;
-                        // }
-
                         walltrack.scale.set(width / boxWidth, 0.05, 0.05);
-
+                        walltrack.name = `psbTrack-${this.index}-${j}`
                         trackGroup.add(walltrack);
                         walltrack.position.z = -41 * j;
-
                     }
-                    trackGroup.position.x = first.max.x;
+                    let x = first.max.x
+                    if(psts.length == 1) {
+                        let len = this.shelvesData[this.shelvesData.length - 1].x
+                        if(psts[0].x !== len) {
+                            x = first.max.x + 14
+                        }
+                    } else if(psts.length == 2) {
+                        x = first.max.x + 14
+                    }
+                    trackGroup.position.x = x;
                     trackGroup.position.z = -18;
                     trackGroup.position.y = deep - 12
                     self.station.add(trackGroup);
+                    self.$store.commit('index/setPstSwitch', true)
                 });
             },
             /**
@@ -270,7 +275,6 @@
                 let self = this
                 let platform = self.getMould.platform;
                 let sowwall = self.getMould.sowwall;
-
                 let shelves_site = self.shelves;
                 self.wallgroup.name = 'allWallGroup';
                 var wallgroup = new this.$THREE.Group();//播种墙、播种板
@@ -280,11 +284,8 @@
                 platwall.scale.set(0.05, 0.05, 0.05);
                 let wall = new self.$THREE.Box3();
                 wall.expandByObject(platwall);
-                let sowwallWidth = wall.max.x - wall.min.x;
-                let sowwallSpace = 32.7;//站台间距
                 platwall.name = 'sowWall';
                 wallgroup.add(platwall); //把站台架加入组中
-                // wallgroup.position.x = (sowwallWidth + 32.7) * j;
                 let plat_group = new self.$THREE.Group();//播种板
                 plat_group.name = 'boardteam';
                 platform.scale.set(0.05, 0.05, 0.05);
@@ -320,8 +321,8 @@
              * shelvesLen 生成货架数量
              * currentX 第一个货架的x 位置
              * xPos 命名需要的参数
-              */
-            addShelves(shelvesLen, currentX, xPos) {
+             */
+            addShelves(shelvesLen, currentX, xPos, transparent = true) {
                 let self = this
                 let obj = this.getMould.shelves;
                 let x_space = 0;
@@ -330,7 +331,8 @@
                 for (let i = 0; i < shelvesLen; i++) {
                     let gltf = obj.clone();
                     gltf.name = `shelve${this.index}-${xPos + i}`;
-                    // console.log('gltf name', gltf.name)
+                    gltf.visible = transparent
+
                     gltf.position.x = currentX + x_space - this.shelvesWidth * i;
                     self.station.add(gltf);
                     x_space -= shelvesPadding;  //货架之间的默认间距为375mm*0.05=18.75
@@ -348,37 +350,43 @@
                     let num = model.num
                     let x = model.x
                     let space = model.space
-                    if(name === 'pstWay') {
+                    if (name === 'pstWay') {
+                        Object.assign(model, {
+                            posX: currentX,
+                        })
+                        this.addShelves(num, currentX, x, false)
+                        this.pstPos.push(model)
                         currentX = currentX - num * (width + padding)
-                    } else if(name === 'station') {
+                    } else if (name === 'station') {
                         let name = `station${this.index}-${x}`
                         currentX = currentX - padding
                         let stationWidth = this.addStationGroup(name, currentX)
                         currentX = currentX - stationWidth
-                    } else if(name === 'pickWay') {
+                    } else if (name === 'pickWay') {
+                        this.addShelves(num, currentX, x, false)
                         currentX = currentX - num * (width + padding)
-                    } else if(name === 'shelve') {
+                    } else if (name === 'shelve') {
                         this.addShelves(num, currentX, x)
                         currentX = currentX - num * (width + padding)
                     }
-                    if(this.index % 2 == 0) {
-                        for (let j = 0; j < peoples.length; j++) {
-                            let pe = peoples[j]
-                            if(pe.x == x) {
-                                let name = `people${this.index}-${j}`
-                                this.$parent.addRobot(currentX, this.station, j, name)
-                                k = k + 1
-                            }
-                        }
-                    }
+                    // if (this.index % 2 == 0) {
+                    //     for (let j = 0; j < peoples.length; j++) {
+                    //         let pe = peoples[j]
+                    //         if (pe.x == x) {
+                    //
+                    //             // this.$parent.addRobot(currentX, this.station, j, name)
+                    //             k = k + 1
+                    //         }
+                    //     }
+                    // }
                 }
             },
+            // modelData 是2d 编辑器生成的数据
             // 根据 modelData 数据生成模型
             addModelFromData() {
                 //机器人轨道
                 let self = this;
                 let shelvestrack = self.getMould.shelvestrack;
-
                 let trackBox = new self.$THREE.Box3();
                 trackBox.expandByObject(shelvestrack);
                 let trackWidth = (trackBox.max.z - trackBox.min.z) * 0.05;
@@ -391,21 +399,24 @@
                 this.shelves.expandByObject(obj);
                 this.shelvesWidth = this.shelves.max.x - this.shelves.min.x
 
+                // modelData 是 2d 编辑器生成的映射数据
                 let modelData = this.$parent.modelData
                 let stationNum = this.$parent.sceneOption[0].stationNum
                 let shelvesData = modelData[0].shelve
                 let peoples = modelData[0].peoples
+                let psts = modelData[0].psts
                 let psbLen = modelData[0].psb.length
                 let index = 0
-                if(this.index >= stationNum) {
+                if (this.index >= stationNum) {
                     shelvesData = modelData[1].shelve
                     peoples = modelData[1].peoples
                     psbLen = modelData[0].psb.length
+                    psts = modelData[1].psts
                     index = 1
                 }
+                this.shelvesData = shelvesData
                 this.addFloor(shelvesData, peoples)
-                this.addTrack(index)
-                this.addPsb(psbLen)
+                this.addTrack(index, psts)
             },
             // 加载模型
             loadShelves(shelvesPadding = 18.75) {
@@ -425,16 +436,16 @@
             },
             getBoxMax(name) {
                 let obj = this.scenes.getObjectByName(name);
-                if(obj !== undefined) {
+
+                if (obj !== undefined) {
                     let objBox = new this.$THREE.Box3();
                     objBox.expandByObject(obj);
                     return [objBox.max.x, objBox.max.z]
                 }
-                return {}
+                return
             },
             //添加货箱
             addBox() {
-                // let self = this;
                 let box = this.getMould.box;
                 // 加载货箱
                 /*
@@ -443,9 +454,6 @@
                 长度: 5370mm*0.05=268.5
                  * */
                 box.scale.set(0.05, 0.05, 0.05);
-                // let trackBox = new self.$THREE.Box3();
-                // trackBox.expandByObject(box);
-                // console.log('box size',trackBox.max.z-trackBox.min.z,trackBox.max.x-trackBox.min.x,trackBox.max.y-trackBox.min.y);
                 /*
                     X:380.82mm*0.05   19
                     Y:634.701mm   31.7
@@ -457,27 +465,21 @@
                     x_space:9.5+4 货箱宽度的一半+padding --X方向间距
                     z_space:每行货箱的间距为150mm*0.05=7.5
                     * */
-                let x_space = 13.5, z_space = 7.5;
+                let x_space = 13.5, z_space = 8.5;
                 let boxGroup = new this.$THREE.Group()
                 boxGroup.name = 'allBox'
                 this.$parent.scene.add(boxGroup)
-                // shelves_site.max.z -= 10;//z方向减去货架自身宽度
                 let list = this.box;
-                // this.scenes = this.$parent.scene;
                 for (let i in list) {
                     if (boxGroup.children.find(ele => ele.name == list[i][3])) continue;
                     let gltf = box.clone();
                     gltf.material = box.material.clone();
-                    gltf.material.transparent = true;//是否透明
                     gltf.geometry.center();//模型中心点居中
-                    // console.log('gltf, gltf.geometry', gltf, gltf.geometry)
-                    // gltf.material.opacity = 0.7;
                     gltf.material.transparent = true;//是否透明
                     gltf.siteZ = list[i][2];
                     gltf.name = list[i][3]; //行列层
-
                     let site = this.addCargos(list[i], x_space, z_space, this.shelves);
-                    if(site.length > 0) {
+                    if (site.length > 0) {
                         gltf.position.set(site[0], site[1], site[2]);
                         boxGroup.add(gltf);
                     }
@@ -485,29 +487,15 @@
             },
             addCargos(site, x_space, z_space, shelves_site) {
                 let x, y, z;
-                // if (site[0] == 2) {
-                //     let shelveBox = this.getModelBox().shelveBox
-                //     let stationBox = this.getModelBox().stationBox
-                //     console.log('shelveBox', shelveBox, stationBox)
-                //     this.$parent.shelvesHeight = shelveBox.max.y - shelveBox.min.y
-                //     // x = shelveBox.max.x - stationBox.max.x + 19.041 + 26.8559
-                //     x = 19.041 + 26.8559
-                // } else {
-                //     x = shelves_site.max.x - (19.041 + 26.8559) * (site[0] - 27) - x_space;  //19.0419为货箱的宽度  26.8559:货架间距18.75+padding 8.1059
-                // }
-                if(site[0] !== this.currentX) {
-                    this.shelveArr = this.getBoxMax(`shelve${this.index}-${site[0]}`)
+                if (site[0] !== this.currentX) {
+                    this.shelveArr = this.getBoxMax(`shelve${this.index}-${site[0]}`) || this.getBoxMax(`station${this.index}-${site[0]}`)
                     this.currentX = site[0]
                 }
-                // this.shelve = this.getBoxMax(`shelve0-${site[0]}`)
-                // console.log('shelve', this.shelveArr, `shelve0-${site[0]}`)
-                if(this.shelveArr.length > 0) {
-                    x = this.shelveArr[0] - x_space
-                    // x = shelve.max.x - (19.041 + 26.8559) * (site[0]) - x_space;  //19.0419为货箱的宽度  26.8559:货架间距18.75+padding 8.1059
-                    y = 15 + 19 * site[1] - 1;
+                let xSite = this.checkShevles(site[0]) //计算是货架还是工作站
+                if (this.shelveArr.length > 0) {
+                    x = xSite ? this.shelveArr[0] - x_space - 5 : this.shelveArr[0] - x_space
+                    y = xSite ? 76 : 15 + 19 * site[1] - 1;
                     z = this.shelveArr[1] - 10 - 31.7 * (site[2] - 1) - z_space * site[2] - 31.7 / 2;   //31.7为货箱Z方向的长度
-                    // z = shelves_site.max.z
-                    // console.log([x, y, z])
                     return [x, y, z];
                 } else {
                     return []
@@ -528,16 +516,6 @@
                 // self.camera.updateProjectionMatrix();
                 self.renderer.setSize(window.innerWidth, window.innerHeight);
             },
-            // psbAnimateX(group, params, duration){
-            // 	var position_x = [params[0], 0, 0, params[1], 0, 0];
-            // 	var pos1_Keyframe = new this.$THREE .KeyframeTrack('group.position', [0,duration], position_x);
-            // 	var clip = new this.$THREE.AnimationClip('boxAnimation', duration, [
-            // 		pos1_Keyframe,
-            // 	]);
-            // 	this.mixer = new this.$THREE.AnimationMixer(group);
-            // 	var action = this.mixer.clipAction(clip);
-            // 	return action
-            // },
             // 抓箱机器人动画(X方向)
             psbAnimateX(group, params, duration) {
                 let rota = ({
@@ -545,9 +523,8 @@
                 });
                 let xMotion = new TWEEN.Tween(rota);
                 xMotion.to({
-                    // x:!params[1] ? 0 : params[0] + params[1]
                     x: params[1]
-                }, duration, TWEEN.Easing.Sinusoidal.InOut);
+                }, Math.abs(duration), TWEEN.Easing.Sinusoidal.InOut);
                 xMotion.onUpdate(function () {
                     group.position.x = this.x;
                 });
@@ -566,7 +543,7 @@
                 points[0] = (new self.$THREE.Vector3(psbSite.x, psbSite.y, psbSite.z));
                 yMotion.to({
                     y: params[1] / 0.05 //children的坐标系未进行缩放，故移动的是初始坐标
-                }, duration, TWEEN.Easing.Sinusoidal.InOut);
+                }, Math.abs(duration), TWEEN.Easing.Sinusoidal.InOut);
                 yMotion.onUpdate(function () {
                     group.children[1].position.y = this.y;
                     for (let i = 2; i < group.children.length; i++) {  //连接绳子伸缩
@@ -577,30 +554,38 @@
                 });
                 return yMotion;
             },
-            //添加记忆动画
-            reckonDistance(time, box, flag) {
-                return {
-                    time,
-                    box,
-                    flag
-                };
-            },
+
             setProgress(psb) {
-                let self = this;
-                if (this.progressTime < 100 && self.playState) {
-                    self.$store.commit('index/setProgress', {attribute: 'moveTime', value: 1 * self.speedTimes})
-                    self.psbTimer[psb.name] = setTimeout(() => {
-                        self.setProgress(psb)
-                    }, 1000);
-                } else {
-                    clearTimeout(self.psbTimer[psb.name]);
+                this.setIntervalFrame(psb.name, 1000)
+            },
+            //定时器
+            setIntervalFrame(name, interval) {
+                let timer
+                const now = Date.now
+                let startTime = now()
+                let endTime = startTime
+                if(this.psbTimer[name])cancelAnimationFrame(this.psbTimer[name])
+                const loop = () => {
+                    timer = requestAnimationFrame(loop)
+                    this.psbTimer[name] = timer
+                    endTime = now()
+                    if (endTime - startTime >= interval) {
+                        if (this.progressTime < 100 && this.playState) {
+                            startTime = endTime = now()
+                            this.$store.commit('index/setProgress', {attribute: 'moveTime', value: 1 * this.speedTimes})
+                        } else {
+                            cancelAnimationFrame(timer)
+                        }
+
+                    }
                 }
+                loop()
             },
             // 获取模型盒子的方法
             getBox(name) {
                 let scenes = this.$parent.scene;
                 let obj = scenes.getObjectByName(name);
-                if(obj !== undefined) {
+                if (obj !== undefined) {
                     let objBox = new this.$THREE.Box3();
                     objBox.expandByObject(obj);
                     return {
@@ -616,9 +601,9 @@
                 let stations = this.$parent.stations
                 let model = {}
                 for (let i = 0; i < stations.length; i++) {
-                    let station = stations[i]
-                    if (station.x === -index) {
-                        model = station
+                    let sta = stations[i]
+                    if (sta.x === index) {
+                        model = sta
                     }
                 }
                 let station = this.getBox(`${model.name}0-${model.x}`)
@@ -627,81 +612,73 @@
                 let firstObj = this.getModelObj(0).firstObj
                 let first = this.getBox(`${firstObj.name}0-${firstObj.x}`)
                 let firstWidth = first.max.x - station.max.x
-                // console.log('first width', firstWidth)
-                // station.max.x
-                // if(bool) {
-                //     return width
-                // } else {
-                //     return station.max.x
-                // }
+
                 return -firstWidth - width / 4
             },
             calculatePlace(boxSite, shevlesSpace, wallSpace, direction) { //计算抓箱的位置
                 let targetSite;
-                // console.log('boxsite ******', boxSite.x, boxSite.y)
                 let x = boxSite.x
                 if (direction == 'x') {
                     //26.8559为货架间距、箱子居中货架的paading(8.1059)、19为箱子的宽度
-                    // return targetSite = wallSpace + 19.041 * boxSite.x + (shevlesSpace + 8.1059) * (boxSite.x - 1);
-
                     let last = this.getBox(`shelve0-${x}`)
-
-                    // let width = psb.position.x - last.position.x
                     let firstObj = this.getModelObj(0).firstObj
                     let first = this.getBox(`${firstObj.name}0-${firstObj.x}`)
                     let firstWidth = first.max.x - first.min.x
                     let width = first.max.x - last.max.x
-                    // let width = psb.getWorldPosition().x - last.getWorldPosition().x + this.psbWidth + firstWidth
-                    // let width = psb.position.x - last.position.x - firstWidth - this.psbWidth / 2
-
                     return width + 3
-                    // } else if (direction == 'xEnd') {
-                    // return targetSite = wallSpace + 19.041 * boxSite.x + (shevlesSpace + 8.1059) * (boxSite.x - 1);
-                    // return targetSite = (19.041 + shevlesSpace + 8.1059) * boxSite.x+4.05;  //26.8559为货架间距、箱子居中货架的paading、19为箱子的宽度
-                } else {
-                    // debugger
-                    targetSite = 19 * (boxSite.y + 1) + 24.09;//机器人上半部分为9.09箱子Y轴初始位置为15
-
-                    return targetSite
                 }
+                targetSite = 19 * (boxSite.y + 1) + 24.09;//机器人上半部分为9.09箱子Y轴初始位置为15
+                return targetSite
             },
             changeValue(group, array) {
-                if (group.name === '') {
+                if (group && group.name === '') {
                     array = [0, 0]
                 }
                 return array
             },
-            clawBox(name, start, end, time, index, flag, mark) {
+            checkShevles(x) {
+                let xSite = this.shelvesData.filter(e => e.x == x)
+                return xSite[0] && xSite[0].name == "station"
+            },
+            // 为运动数据添加属性
+            addAtr(obj, flag, time, box) {
+                obj.flag = flag;
+                obj.time = time;
+                obj.box = box;
+                obj.index = this.index;
+            },
+            clawBox(psb, name, start, end, time, index, flag, mark) {
                 let self = this;
                 let order = parseInt(start.z % 6 - 1);
-                let num = parseInt(start.z / 6)
-                self.psbRobot = this.scenes.getObjectByName(`psb-group-${num}`)
-                let psb = self.psbRobot.children[order];//运动机器人
+                let endXSite = this.checkShevles(end.x) //计算是货架还是工作站
+                let stationState = false
+                if (endXSite) {
+                    stationState = true
+                }
+                // let num = parseInt(start.z / 6)
+                // self.psbRobot = this.scenes.getObjectByName(`psb-group-${num}`)
                 let boardTime = null;
                 psb.state = false;//设置正在运动
                 self.setProgress(psb);
-                // if(self.psbTimer.)
                 let params = {//计算运动时间对象
                     yEnd: end.y,
                     yStart: start.y,
                     xEnd: end.x,
                     xStart: start.x,
-                    order: order
+                    order: order,
+                    psb
                 };
                 let box3 = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/box3.jpg');
-
-                // console.log('start', start, end)
                 let duration = self.calculateTime(params);
-                // console.log('duration ******* ', duration)
                 let durationCopy = JSON.parse(JSON.stringify(duration));
+
                 let allBox = this.scenes.getObjectByName('allBox')
-                // debugger
-                let box = allBox.children.find(ele => ele.name == name.containerCode) || self.$parent.scene.children.find(ele => ele.name == name.containerCode) || psb.children[1].children.find(ele => ele.name == name.containerCode);
-                // console.log('state **** ', box.state, box)
+                let box = this.scenes.getObjectByName(name.containerCode)
                 if (box.status == 'scene') {
                     boardTime = durationCopy.grab
                 } else {
                     boardTime = durationCopy.set
+
                 }
                 for (let i in self.psbRobot.children) {
                     let boardy = [self.psbRobot.children[i].position.y, -(self.seedBoard.max.y + 8)]; //放箱到播种板动画
@@ -710,13 +687,12 @@
                         board: self.psbAnimateY(self.psbRobot.children[i], boardy, boardTime * 1000 / 2 / self.speedTimes)
                     };
                 }
-                // box.material.color.setRGB(1, 0, 0); //ff0000红色
                 let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/boxRed1.jpg');
                 var material = new THREE.MeshLambertMaterial({
                     map: texture,
                 });
                 box.material = material
-                // debugger
+                //
                 let lines = null
                 if (box.name !== '') {
                     let edges = new self.$THREE.EdgesGeometry(box.geometry);
@@ -726,37 +702,50 @@
                         linewidth: 5,
                     });
                     lines = new self.$THREE.LineSegments(edges, edgesMaterial);//选中箱子辅助线
-                    // box.add(lines);
                 }
-                // 网格模型和网格模型对应的轮廓线框插入到场景中
-                // let outlineMaterial1 = new self.$THREE.MeshBasicMaterial( { color: 0xff0000,wireframe   : true } );
-                // box.material=outlineMaterial1
-                // let boxHelper = new self.$THREE.OutlinePass(box);
-                // self.station.add( boxHelper );
-                // console.log('box.material.color', box.material.color);
-                let action = psb.actions;
-                //11
-                // x的值 4 14 16 26 为站台
-                let xSpace = start.x < 0 ? self.calculateStation(start.x) : self.calculatePlace(start, 18.75, 32.7, 'x');//0--4为站台
-                // console.log('Xspace ******', start, xSpace)
+                let pstTrack = this.scenes.getObjectByName(`shelve${this.index}-${end.x}`)?.modelType
+                if (psb.children[1].getObjectByName(name.containerCode) && !mark) {
+                    if (name.robotType == 'PST') {
+                        let psb = this.scenes.getObjectByName(name.psbCode)
+                        this.$parent.pstTween(psb, name)  //pst动画
+                    } else {
+                        self.endPointTween(stationState, psb, boardTime, duration, end, box, order, box3, index, lines, time)
+                    }
+                    return
+                }
 
-                let initial = psb.position.x < xSpace ? -1 : 1;//判断初始抓箱和机器人位置 确定移动方向
-                if (start.x < 0) {
+                let startState = this.checkShevles(start.x) //计算是货架还是工作站
+                let xSpace = startState ? self.calculateStation(start.x) : self.calculatePlace(start, 18.75, 32.7, 'x');//计算X移动的偏移量
+                let initial = psb.position.x < xSpace ? -1 : 1;//判断初始机器人位置 确定移动方向
+                if (startState) {
                     initial = 1
                 } else {
                     initial = -1
                 }
-                let direction = start.x < end.x ? -1 : 1; //判断初始位置和终点位置 确定方向
                 let ySpace = self.calculatePlace(start, 18.75, 32.7, 'y') - self.shelves.max.y;
-                // this.log('::::::::', self.calculatePlace(start, 18.75, 32.7, 'y'))
-                // this.log('|||||||||||', self.shelves.max.y)
-                // this.log('??????????', self.calculatePlace(start, 18.75, 32.7, 'y') - self.shelves.max.y)
-                // console.log('ySpace ******', start.x, ySpace)
-                let xStart = [psb.position.x, xSpace * initial]; //初始为0 ||self.psbRobot.children[order].position.x
-                // console.log('[psb.position.x, xSpace * initial] ******', start.x, ySpace, initial)
-                // debugger
-                let yStart;
+                let xStart = [psb.position.x, xSpace * initial]; //初始为0 ||self.psbRobot.children[order].position.
 
+
+                if (!name.containerCode) {  //psb运动没有箱子的情况下
+                    let singlePsb
+                    if (stationState) {
+                        singlePsb = [psb.position.x, self.calculateStation(end.x)];
+                    } else {
+                        let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
+                        singlePsb = [psb.position.x, -xEndSpace];
+                    }
+                    let ahead = self.psbAnimateX(psb, singlePsb, duration.move * 1000 / self.speedTimes);
+                    self.addAtr(ahead, 'endx', time, box)
+                    ahead.start().onComplete(() => {
+                        psb.state = true;//完成运动
+                        self.toRun(end, box, index, order, psb.name, true)
+                    })
+                    return
+                }
+
+                let action = psb.actions
+
+                let yStart;
                 if (mark == 'start' || !mark) {
                     // 判断目标箱上方的障碍箱
                     self.obstructBox[order] = self.station.children.filter((obj) => {
@@ -782,8 +771,7 @@
                     } else {
                         yStart = [psb.position.y, ySpace];
                     }
-                    this.log('ystart', yStart)
-                    if (start.x < 0) {  //初始是否为站台
+                    if (startState) {  //是否为站台
                         if (flag == 'amend') {  //是否点击暂停 暂停后取最新机器人位置
                             let boardy = [psb.children[1].position.y, -(self.seedBoard.max.y + 8)];
                             boardy = this.changeValue(box, boardy)
@@ -796,20 +784,15 @@
                         action.fall_rise = self.psbAnimateY(psb, yStart, duration.grab * 1000 / 2 / self.speedTimes);
                     }
                     if (xStart[0] != xStart[1]) {  //判断机器人位置是否和开始抓箱位置是否一致
-
                         action.ahead = self.psbAnimateX(psb, xStart, duration.psbTime / self.speedTimes);
+                        this.$store.commit('index/setProgress', {attribute: 'totalTime', value:duration.psbTime/1000})  //把psb移动时间加入进度条
                         action.ahead.chain(action.fall_rise);
                         action.ahead.start();
-                        action.ahead.flag = 'start';
-                        action.ahead.time = time;
-                        action.ahead.box = box;
+                        self.addAtr(action.ahead, 'start', time, box)
                     } else {
                         action.fall_rise.start();
                     }
-
-                    action.fall_rise.flag = 'start';
-                    action.fall_rise.box = box;
-                    action.fall_rise.time = time;
+                    self.addAtr(action.fall_rise, 'start', time, box)
                     action.fall_rise.onComplete(() => {
                         box.position.copy(psb.children[1].children[0].position);
                         box.scale.set(1, 1, 1);
@@ -820,63 +803,14 @@
                         y = this.changeValue(box, y)
                         fall_rise = self.psbAnimateY(psb, y, durationCopy.grab * 1000 / 2 / self.speedTimes); //抓箱上升
                         fall_rise.start();
-                        fall_rise.flag = 'end';
-                        fall_rise.box = box;
-                        fall_rise.time = time;
+                        self.addAtr(fall_rise, 'end', time, box)
                         fall_rise.onComplete(() => {
-                            let rise, xEnd;
-                            //11
-                            // console.log('end', end.x)
-                            if (end.x <= 0) {
-                                xEnd = [psb.position.x, self.calculateStation(end.x)];
-                                // debugger
-                                // console.log('psb.position.x', psb.position.x, self.calculateStation(end.x))
-                                rise = action.board;
-                            } else {
-                                let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
-                                let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
-                                xEnd = [psb.position.x, -xEndSpace];
-                                let yEnd = [psb.position.y, yEndSpace];
-                                yEnd = this.changeValue(box, yEnd)
-                                rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
-
+                            if (name.robotType == 'PST') {
+                                let psb = this.scenes.getObjectByName(name.psbCode)
+                                this.$parent.pstTween(psb, name)  //pst动画
+                                return
                             }
-                            let ahead = self.psbAnimateX(psb, xEnd, duration.move * 1000 / self.speedTimes);
-                            ahead.flag = 'endx';
-                            ahead.box = box;
-                            ahead.time = time;
-                            rise.flag = 'upBoard';
-                            rise.box = box;
-                            rise.time = time;
-                            ahead.chain(rise);
-                            ahead.start();
-                            rise.onComplete(() => {
-                                box.position.copy(box.getWorldPosition());
-                                box.scale.set(0.05, 0.05, 0.05);
-                                box.status = 'scene'
-                                self.$parent.scene.add(box);
-                                let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
-                                yUp = this.changeValue(box, yUp)
-                                let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
-                                up.start();
-                                // up = self.addIdentity(up, time, box, 'endBoard');
-                                up.flag = 'endBoard';
-                                up.box = box;
-                                up.time = time;
-                                // console.log('self.speedTimes', self.speedTimes, duration.set * 1000 / 2 / self.speedTimes);
-                                up.onComplete(() => {
-                                    psb.state = true;//完成运动
-                                    let material = new THREE.MeshLambertMaterial({
-                                        map: box3,
-                                    });
-                                    box.material = material;
-                                    // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
-                                    box.remove(lines);
-                                    if (yUp[0] !== yUp[1]) {
-                                        self.toRun(end, box, index, order, psb.name)
-                                    }
-                                });
-                            });
+                            self.endPointTween(stationState, psb, boardTime, duration, end, box, order, box3, index, lines, time)
                         });
                     });
                 } else if (mark == 'end') {
@@ -886,121 +820,31 @@
                     y = this.changeValue(box, y)
                     let fall_rise = self.psbAnimateY(psb, y, duration.grab * 1000 / 2 / self.speedTimes); //抓箱上升
                     fall_rise.start();
-                    // fall_rise = self.addIdentity(fall_rise, time, box, 'end');
-                    fall_rise.flag = 'end';
-                    fall_rise.box = box;
-                    fall_rise.time = time;
+                    self.addAtr(fall_rise, 'end', time, box)
                     fall_rise.onComplete(() => {
-                        let rise, xEnd;
-                        if (end.x <= 0) {
-                            xEnd = [psb.position.x, self.calculateStation(end.x)];
-                            // debugger
-                            rise = action.board;
-                        } else {
-                            let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
-                            let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
-                            xEnd = [psb.position.x, -xEndSpace];
-                            let yEnd = [psb.position.y, yEndSpace];
-                            yEnd = this.changeValue(box, yEnd)
-                            rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
-                        }
-                        let ahead = self.psbAnimateX(psb, xEnd, duration.move * 1000 / self.speedTimes);
-                        // ahead = self.addIdentity(ahead, time, box, 'endx');
-                        // rise = self.addIdentity(rise, time, box, 'upBoard');
-                        ahead.flag = 'endx';
-                        ahead.box = box;
-                        ahead.time = time;
-                        rise.flag = 'upBoard';
-                        rise.box = box;
-                        rise.time = time;
-                        ahead.chain(rise);
-                        ahead.start();
-                        rise.onComplete(() => {
-                            box.position.copy(box.getWorldPosition());
-                            box.scale.set(0.05, 0.05, 0.05);
-                            box.status = 'scene'
-                            self.$parent.scene.add(box);
-                            let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
-                            yUp = this.changeValue(box, yUp)
-                            let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
-                            up.start();
-                            // up = self.addIdentity(up, time, box, 'endBoard');
-                            up.flag = 'endBoard';
-                            up.box = box;
-                            up.time = time;
-                            up.onComplete(() => {
-                                psb.state = true;//完成运动
-                                let material = new THREE.MeshLambertMaterial({
-                                    map: box3,
-                                });
-                                box.material = material;
-                                // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
-                                box.remove(lines);
-                                if (yUp[0] !== yUp[1]) {
-                                    self.toRun(end, box, index, order, psb.name)
-                                }
-                            });
-                        });
+                        self.endPointTween(stationState, psb, boardTime, duration, end, box, order, box3, index, lines, time)
                     });
-                } else if (mark === 'endx') {
-                    let rise, xEnd;
-                    if (end.x <= 0) {
-                        xEnd = [psb.position.x, self.calculateStation(end.x)];
-                        rise = action.board;
+                } else if (mark == 'endx') {
+                    if (stationState) {
+                        // xEnd = [psb.position.x, self.calculateStation(end.x)];
+                        // rise = action.board;
                         let precent = Math.abs(psb.position.x) / Math.abs(xSpace);
                         duration.move = durationCopy.move * precent;
                     } else {
-                        let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
+                        // let yEndSpace = self.calculatePlace(end, 18.75, 32.7, 'y') - self.shelves.max.y;
                         let xEndSpace = self.calculatePlace(end, 18.75, 32.7, 'x');
-                        xEnd = [psb.position.x, -xEndSpace];
-                        // debugger
-                        let yEnd = [psb.position.y, yEndSpace];
-                        yEnd = this.changeValue(box, yEnd)
-                        rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
+                        // xEnd = [psb.position.x, -xEndSpace];
+                        // let yEnd = [psb.position.y, yEndSpace];
+                        // yEnd = this.changeValue(box, yEnd)
+                        // rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
                         let precent = Math.abs(psb.position.x) / Math.abs(xEndSpace);
                         duration.move = durationCopy.move * (1 - precent);
                     }
-                    let ahead = self.psbAnimateX(psb, xEnd, duration.move * 1000 / self.speedTimes);
-                    // ahead = self.addIdentity(ahead, time, box, 'endx');
-                    // rise = self.addIdentity(rise, time, box, 'upBoard');
-                    ahead.flag = 'endx';
-                    ahead.box = box;
-                    ahead.time = time;
-                    rise.flag = 'upBoard';
-                    rise.box = box;
-                    rise.time = time;
-                    ahead.chain(rise);
-                    ahead.start();
-                    rise.onComplete(() => {
-                        box.position.copy(box.getWorldPosition());
-                        box.scale.set(0.05, 0.05, 0.05);
-                        box.status = 'scene'
-                        self.$parent.scene.add(box);
-                        let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
-                        yUp = this.changeValue(box, yUp)
-                        let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
-                        up.start();
-                        // up = self.addIdentity(up, time, box, 'endBoard');
-                        up.flag = 'endBoard';
-                        up.box = box;
-                        up.time = time;
-                        up.onComplete(() => {
-                            psb.state = true;//完成运动
-                            let material = new THREE.MeshLambertMaterial({
-                                map: box3,
-                            });
-                            box.material = material;
+                    self.endPointTween(stationState, psb, boardTime, duration, end, box, order, box3, index, lines, time)
 
-                            // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
-                            box.remove(lines);
-                            if (yUp[0] !== yUp[1]) {
-                                self.toRun(end, box, index, order, psb.name);
-                            }
-                        });
-                    });
                 } else if (mark === 'upBoard') {
                     let rise;
-                    if (end.x <= 0) {
+                    if (stationState) {
                         let boardy = [psb.children[1].position.y, -(self.seedBoard.max.y + 8)];
                         boardy = this.changeValue(box, boardy)
                         rise = self.psbAnimateY(psb, boardy, boardTime * 1000 / 2 / self.speedTimes);
@@ -1010,10 +854,8 @@
                         yEnd = this.changeValue(box, yEnd)
                         rise = self.psbAnimateY(psb, yEnd, duration.set * 1000 / 2 / self.speedTimes);
                     }
-                    // rise = self.addIdentity(rise, time, box, 'upBoard');
-                    rise.flag = 'upBoard';
-                    rise.box = box;
-                    rise.time = time;
+                    self.addAtr(rise, 'upBoard', time, box)
+
                     rise.start();
                     rise.onComplete(() => {
                         box.position.copy(box.getWorldPosition());
@@ -1025,9 +867,12 @@
                         let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                         up.start();
                         // up = self.addIdentity(up, time, box, 'endBoard');
-                        up.flag = 'endBoard';
-                        up.box = box;
-                        up.time = time;
+                        // up.flag = 'endBoard';
+                        // up.box = box;
+                        // up.time = time;
+                        // up.index=self.index
+                        self.addAtr(up, 'endBoard', time, box)
+
                         up.onComplete(() => {
                             psb.state = true;//完成运动
                             let material = new THREE.MeshLambertMaterial({
@@ -1046,10 +891,8 @@
                     yUp = this.changeValue(box, yUp)
                     let up = self.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / self.speedTimes);
                     up.start();
-                    // up = self.addIdentity(up, time, box, 'endBoard');
-                    up.flag = 'endBoard';
-                    up.box = box;
-                    up.time = time;
+                    self.addAtr(up, 'endBoard', time, box)
+
                     up.onComplete(() => {
                         psb.state = true;//完成运动
                         let material = new THREE.MeshLambertMaterial({
@@ -1064,14 +907,108 @@
                     });
                 }
             },
+            // 终点运动判断
+            endPointTween(stationState, psb, boardTime, duration, end, box, order, box3, index, lines, time) {
+                let xEnd, rise;
+                if (stationState) {
+                    xEnd = [psb.position.x, this.calculateStation(end.x)];
+                    let boardy = [psb.position.y, -(this.seedBoard.max.y + 8)]; //放箱到播种板动画
+                    boardy = this.changeValue(box, boardy)
+                    rise = this.psbAnimateY(psb, boardy, boardTime * 1000 / 2 / this.speedTimes);
+                } else {
+                    let yEndSpace = this.calculatePlace(end, 18.75, 32.7, 'y') - this.shelves.max.y;
+                    let xEndSpace = this.calculatePlace(end, 18.75, 32.7, 'x');
+                    xEnd = [psb.position.x, -xEndSpace];
+                    let yEnd = [psb.position.y, yEndSpace];
+                    yEnd = this.changeValue(box, yEnd)
+                    rise = this.psbAnimateY(psb, yEnd, duration.set * 1000 / 2/ this.speedTimes);
+
+                }
+                let ahead = this.psbAnimateX(psb, xEnd, duration.move * 1000 / this.speedTimes);
+                this.addAtr(ahead, 'endx', time, box)
+                this.addAtr(rise, 'upBoard', time, box)
+                //
+                let pstTrack = this.scenes.getObjectByName(`shelve${this.index}-${end.x}`)?.modelType
+                if (pstTrack) {  //endPoint  pst带psb且带箱子移动情况
+                    ahead.start().onComplete(() => {
+                        psb.state = true;
+                        this.toRun(end, box, index, order, psb.name, true)
+                    });
+                    return;
+                }
+                ahead.chain(rise);
+                ahead.start();
+                rise.onComplete(() => {
+                    box.position.copy(box.getWorldPosition());
+                    box.scale.set(0.05, 0.05, 0.05);
+                    box.status = 'scene'
+                    this.$parent.scene.add(box);
+                    let yUp = [psb.children[1].position.y, 0]; //回升初始机器人位置
+                    yUp = this.changeValue(box, yUp)
+                    let up = this.psbAnimateY(psb, yUp, duration.set * 1000 / 2 / this.speedTimes);
+                    up.start();
+                    this.addAtr(up, 'endBoard', time, box)
+                    up.onComplete(() => {
+                        psb.state = true;//完成运动
+                        let material = new THREE.MeshLambertMaterial({
+                            map: box3,
+                        });
+                        box.material = material;
+                        // box.material.color.setRGB(1, 1, 1); //箱子恢复颜色
+                        box.remove(lines);
+                        if (yUp[0] !== yUp[1]) {
+                            this.toRun(end, box, index, order, psb.name)
+                        }
+                    });
+                });
+            },
+            findCloseNum(arr, obj) {
+                // 导入机器人的Y相当于运动数据的Z
+                let index = 0; // 保存最接近数值在数组中的索引
+                let d_value = Number.MAX_VALUE; // 保存差值绝对值，默认为最大数值
+                let floor = 0; //防止第二层的Y调用第一层的机器人
+                let xArr = []
+                let x_value = Number.MAX_VALUE; // 保存差值绝对值，默认为最大数值
+                // num
+                // this.sceneOption[0].stationNum
+                if (obj.y > this.$parent.sceneOption[0].stationNum * 6) {
+                    floor = this.$parent.sceneOption[0].stationNum * 6
+                }
+                for (let i = 0; i < arr.length; i++) {
+                    let new_d_value = Math.abs(arr[i].y - obj.y); // 新差值
+                    if (new_d_value <= d_value && arr[i].y > floor) { // 如果新差值绝对值小于等于旧差值绝对值，保存新差值绝对值和索引
+
+                        if (new_d_value === d_value) { // 如果数组中两个数值跟目标数值差值一样 ,判断X轴更近的
+                            xArr.push(arr[i], arr[index])
+                        }
+                        index = i;
+                        d_value = new_d_value;
+                    }
+                }
+                if (xArr.length) {
+                    let xIndex = 0
+                    for (let j = 0; j < xArr.length; j++) {
+                        let new_x_value = Math.abs(xArr[j].x - obj.x); // 新差值
+                        if (new_x_value <= x_value) {
+                            xIndex = j;
+                            x_value = new_x_value;
+                        }
+                    }
+                    return xArr[xIndex]
+                }
+                return arr[index] // 返回最接近的数值
+            },
             //待执行运动列表运动
-            toRun(end, box, index, order, name) {
+            toRun(end, box, index, order, name, flag) {
                 let self = this;
-                clearTimeout(self.psbTimer[name])
-                if (end.x <= 0) { //0-4为站台
-                    let stationIndex = end.x
-                    // console.log('stationIndex stationIndex', stationIndex)
-                    self.$emit('actionAnimate', {box, index, stationIndex});
+                cancelAnimationFrame(self.psbTimer[name])
+                let x = this.checkShevles(end.x) //计算是货架还是工作站
+                let currentIndex = self.nowRun.findIndex(e => e.robotCode = name)
+                self.nowRun.splice(currentIndex, 1)
+                if (x && !flag) {
+                    let stationIndex = end.x //箱子放置的工作站坐标
+                    let people = this.findCloseNum(this.$parent.pickList, {y: end.z, x: end.x})
+                    self.$emit('actionAnimate', {box, index, stationIndex, people});
                     self.obstructBox[order].forEach(e => {
                         let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/box3.jpg');
                         var material = new THREE.MeshLambertMaterial({
@@ -1080,16 +1017,16 @@
                         e.material = material
                         // e.material.color.setRGB(1, 1, 1);
                     });
-                } else if (self.waitData.length) {
+                } else {
+                    this.checkWaitData()
+                    let news = self.waitData;
                     for (let i in self.waitData) {
-                        let news = self.waitData;
-                        // console.log('news', news)
-                        let index = parseInt(news[i].startPoint.z % 6 - 1);
-                        let robot = self.psbRobot.children[index];//运动机器人
-                        if (robot.state) {
-                            self.clawBox(news[i], news[i].startPoint, news[i].endPoint, news[i].startTime, news[i].index);
-                            self.nowRun.push(news[i]);
+                        let check = this.checkState(news[i])
+                        // 思路：通过判断是pst运动还是psb运动，先去检查要运动的pst、psb是否空闲，如果空闲就执行分别的运动函数
+                        if (check) {
+                            self.classifyAnimate(news[i])
                             self.waitData.splice(i, 1);
+                            break
                         }
                     }
                 }
@@ -1105,12 +1042,13 @@
                     grab = 0;
                     set = 0;
                 }
-                // let move= Math.round((params.xEnd-params.xStart)*0.245+7 ) //移动时间
+                if(this.scenes.getObjectByName(`shelve${this.index}-${params.xEnd}`)?.modelType){
+                    set=0
+                }
                 let move = params.xEnd - params.xStart;  //计算psb移动时间
                 move = ~~(Math.abs(move) * 0.245 + 7 + 0.5);
-                let psbInitial = this.psbRobot.children[params.order].position.x;
+                let psbInitial = params.psb.position.x;
                 let psbStart = (psbInitial - 32.7) / (this.padding + this.shelvesWidth); //货架间距18.75+货架宽度27.14
-                // let psbTime = ~~((Math.abs(psbStart) - start.x) * 0.245 + 7 + 0.5) * 1000;  //计算psb移动到初始抓箱位置需要的时间
                 let psbTime = psbStart + params.xStart;  //计算psb移动到初始抓箱位置需要的时间
                 psbTime = ~~(Math.abs(psbTime) * 0.245 + 7 + 0.5) * 1000;
                 return {
@@ -1121,17 +1059,6 @@
                     psbInitial //初始psb位置
                 };
             },
-            //世界位置转坐标
-            // distanceToVector(psb) {
-            //     let x, y, xDistance;
-            //     xDistance = (psb.position.x - 32.7) / (18.75 + 27.147);//货架间距18.75+货架宽度27.14
-            //     xDistance > 0 ? x = xDistance : x = xDistance * -1;
-            //     y = (psb.children[1].position.y * -0.05) / 19;//机器人上半部分为9.09箱子Y轴初始位置为15
-            //     console.log('x,y', psb.children[1].position.y, x, y);
-            //     return {
-            //         x, y
-            //     };
-            // },
             addLines(size) {
                 var textureTree = new THREE.TextureLoader().load(process.env.BASE_URL + "mould/maps/line.png");
                 var num = 150000;
@@ -1169,57 +1096,76 @@
                 if (self.mixer) self.mixer.update(200);
                 requestAnimationFrame(self.animate);
             },
+            // 动画分类
+            classifyAnimate(news, flag, mark) {
+                this.nowRun.push(news);
+                if (news.robotType == 'PST' && !news.containerCode) {
+                    let psb = news.psbCode ? this.scenes.getObjectByName(news.psbCode) : null
+                    this.$parent.pstTween(psb, news)  //pst动画
+                    return
+                } else {
+                    let psb = news.robotType == 'PST' ? this.scenes.getObjectByName(news.psbCode) : this.scenes.getObjectByName(news.robotCode)
+                    this.clawBox(psb, news, news.startPoint, news.endPoint, news.startTime, news.index, flag, mark);
+                }
+
+            },
+            //检测动画数据的pst或PST是否空闲
+            checkState(item) {
+                if (item.robotType == 'PST') {
+                    if (item.psbCode) {
+                        return (this.scenes.getObjectByName(item.robotCode).state && this.scenes.getObjectByName(item.psbCode).state)
+                    }
+                    return this.scenes.getObjectByName(item.robotCode).state
+                } else {
+                    return (this.scenes.getObjectByName(item.robotCode).state && this.scenes.getObjectByName(item.robotCode).parent.name == this.psbRobot.name)
+                }
+            },
+            checkWaitData(){
+                if(!this.waitData.length) {
+
+                    this.$emit('animateFinish',true)}
+            },
         },
         mounted() {
         },
         watch: {
             initState: {
                 handler(news, old) {
-                    if (news === 7 || old === 7) {
+                    if (news === 9 || old === 9) {
                         this.init()
                     }
                 },
                 immediate: true,
             },
-            // hasProjectData: {
-            //     handler(news, old) {
-            //         console.log('asdlfjkksdaf')
-            //         if (news == true) {
-            //             this.init()
-            //         }
-            //     },
-            // },
-            getHasData: {
-                handler(news, old) {
-                    console.log('newasdfafsdf', news, old)
-                }
-            },
-            waitData: {
-                handler(news) {
-                    // console.log('news', news)
-                }
-            },
             animateData: {
                 handler(news, old) {
                     let self = this;
+
                     if (JSON.stringify(news) !== '{}') {
                         this.$parent.loading = false
                         for (let i in news) {
-                            let order = parseInt(news[i].startPoint.z % 6 - 1);
-                            let index = parseInt(news[i].startPoint.z / 6)
-                            self.psbRobot = this.scenes.getObjectByName(`psb-group-${index}`)
-                            let psb = self.psbRobot.children[order];//运动机器人
-                            // debugger
-                            // console.log('psb', psb)
-                            if (psb.state) {
-                                self.clawBox(news[i], news[i].startPoint, news[i].endPoint, news[i].startTime, news[i].index);
-                                self.nowRun.push(news[i]);
+                            let check = this.checkState(news[i])
+                            // 思路：通过判断是pst运动还是psb运动，先去检查要运动的pst、psb是否空闲，如果空闲就执行分别的运动函数
+                            if (check) {
+                                if (i && news[i].robotType == 'PST') {
+                                    this.waitData.push(news[i]);
+                                } else {
+                                    self.classifyAnimate(news[i])
+                                }
+
                             } else {
-                                self.waitData.push(news[i]);
+                                this.waitData.push(news[i]);
                             }
+
                         }
                     }
-                },
+
+                    },
+            },
+            machineData(news, olds) {
+                if (news.length) {
+                    this.addPsb(news)
+                }
             },
             box: {
                 handler(news, old) {
@@ -1232,63 +1178,55 @@
             },
             pickFinish: {
                 handler(val, old) {
-                    let self = this;
-                    let box = self.pickFinish.box;
-                    // console.log('news', news, self.pickFinish);
-                    for (let i in self.waitData) {
-                        let news = self.waitData;
-                        let order = parseInt(news[i].startPoint.z % 6 - 1);
-                        let index = parseInt(news[i].startPoint.z / 6)
-                        self.psbRobot = this.scenes.getObjectByName(`psb-group-${index}`)
-                        let psb = self.psbRobot.children[order];//运动机器人
-                        console.log('psb', psb)
-                        if (psb.state) {
-                            self.clawBox(news[i], news[i].startPoint, news[i].endPoint, news[i].startTime, news[i].index);
-                            self.nowRun.push(news[i]);
-                            self.waitData.splice(i, 1);
-                        } else {
-                            // self.waitData.push(news[i]);
+                    this.checkWaitData()
+                    for (let i in this.waitData) {
+                        let news = this.waitData;
+                        let check = this.checkState(news[i])
+                        // 思路：通过判断是pst运动还是psb运动，先去检查要运动的pst、psb是否空闲，如果空闲就执行分别的运动函数
+                        if (check) {
+                            this.classifyAnimate(news[i])
+                            this.waitData.splice(i, 1);
+                            break
                         }
-                        // let index = parseInt(box.siteZ - 1);
-                        // let robot = self.psbRobot.children[index];//运动机器人
-                        // if (box.name == list[i].containerCode && list[i].taskType == '回箱') {
-                        //     self.clawBox(list[i], list[i].startPoint, list[i].endPoint, list[i].startTime, list[i].index);
-                        //     self.nowRun.push(list[i]);
-                        //     self.waitData.splice(i, 1);
-                        //     break;
-                        // }
+
                     }
                 },
             },
 
             playState() {
                 let self = this;
-                if (!self.playState) {  //暂停播放
+                if (!self.playState && this.nowRun.length > 0) {  //暂停播放
                     self.runPoint = [];
                     let animate = TWEEN.getAll();
                     let animateClone = JSON.parse(JSON.stringify(animate));
-                    for (let i = animateClone.length - 1; i >= 0; i--) {
-                        let list = {
-                            flag: animate[i].flag,
-                            box: animate[i].box,
-                            time: animate[i].time || ''
-                        };
-                        self.runPoint.push(list);
-                        animate[i].stop();
+                    for (let i in this.psbTimer) {
+                        cancelAnimationFrame(this.psbTimer[i])
                     }
-                } else {
-                    let nowRun = self.nowRun.filter((obj, index) => {
+                    for (let i = animateClone.length - 1; i >= 0; i--) {
+                        if (self.index == animate[i].index || !animate[i].index) {
+                            let list = {
+                                flag: animate[i].flag,
+                                box: animate[i].box || '',
+                                time: animate[i].time || '',
+                                index: self.index
+                            };
+                            self.runPoint.push(list);
+                            animate[i].stop();
+                        }
 
-                        let num = parseInt(obj.startPoint.z % 6 - 1)
-                        self.psbRobot = this.scenes.getObjectByName(`psb-group-${num}`)
-                        return !(self.psbRobot.children[parseInt(obj.startPoint.z % 6 - 1)].state);
+                    }
+
+                } else {
+                    // self.nowRun 证在运动的动画 机器人
+                    let nowRun = self.nowRun.filter((obj, index) => {
+                        return !(this.scenes.getObjectByName(obj.robotCode).state);
                     });
                     if (nowRun.length) {
-                        console.log('e', self.runPoint);
                         nowRun.forEach((e, index) => {
                             self.runPoint.forEach(data => {
-                                if (e.containerCode && data.box.name == e.containerCode && data.time == e.startTime) {
-                                    this.clawBox(e, e.startPoint, e.endPoint, e.startTime, e.index, 'amend', data.flag);
+                                if (data.time == e.startTime) {
+                                    // 思路：通过判断是pst运动还是psb运动，先去检查要运动的pst、psb是否空闲，如果空闲就执行分别的运动函数
+                                    self.classifyAnimate(e, 'amend', data.flag)
                                 }
                             });
                         });
@@ -1300,6 +1238,7 @@
                         });
                     }
                 }
+
             }
         }
     };

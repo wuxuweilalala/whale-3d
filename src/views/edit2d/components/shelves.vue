@@ -35,18 +35,19 @@ export default {
       return {
         zIndex: 9999,
         shevles: [],
-        dict: {},
-        num: 1,
-        space: 53.76,
-        className: {
-          shelves: true,
-          shelve: false,
-          pst: false,
-          way: false,
-        },
-        show: true,
-        height: '22.2vw',
-        border: '',
+          dict: {},
+          num: 1,
+          space: 53.76,
+          className: {
+              shelves: true,
+              shelve: false,
+              pst: false,
+              way: false,
+          },
+          show: true,
+          height: '480px',
+          border: '',
+          widthStyle: '',
       }
   },
   computed: {
@@ -59,18 +60,27 @@ export default {
       }),
       width() {
           if(this.num > 1) {
-            return this.num * this.space - (this.space - this.$vwToPx(2.4)) + 4 + 'px'
+              return parseInt(this.num * this.space - (this.space - 46)) + 2 + 'px'
           } else {
-            return this.num * this.$vwToPx(2.4) + 2 + 'px'
+              return parseInt(this.num * 46) + 2 + 'px'
           }
       }
   },
   created() {
       if(!this.item.isDeleted) {
-        this.zIndex = this.getZIndex + 1
-        // this.border = this.item.border
-
-        this.initModel()
+          this.widthStyle = Number(this.width.replace('px', '')) + 2 + 'px'
+          this.$nextTick(() => {
+              this.setBorderStyle(this.widthStyle, this.height, this.item.left - 2, this.item.top - 2)
+          })
+          // let len = this.$parent.floorList[0].componentList[0].itemList.length - 1
+          // let isDrag = Boolean(sessionStorage.getItem('isDrag'))
+          // if (this.index === len && isDrag) {
+          //   this.findIsSelected()
+          // }
+          this.$parent.key = this.$parent.uuid()
+          this.zIndex = this.getZIndex - 1
+          // this.border = this.item.border
+          this.initModel()
       } else {
           this.show = !this.item.isDeleted
       }
@@ -80,6 +90,7 @@ export default {
           setZIndex: 'setZIndex',
       }),
       initModel() {
+          this.border = this.item.border
           if(this.item.shelvesNum !== undefined) {
               this.num = this.item.shelvesNum
           }
@@ -114,17 +125,16 @@ export default {
         this.$parent.showBorder(this.index)
         // this.setBorderStyle(this.width, this.height, this.left, this.top)
         let shelves = this.$refs.shelves
-        // this.border = '0.08vw solid rgba(230, 162, 64, 1)'
         this.$parent.posNum = parseInt(this.num)
         this.$parent.posLeft = this.left
         this.$parent.posTop = this.top
         this.$parent.posSpace = this.space
 
-        this.dom.style.zIndex = this.getZIndex + 1
+          this.dom.style.zIndex = this.getZIndex - 1
         // console.log('dom 货架', this.dom, this.dom.style, this.getZIndex + 1)
-        this.setZIndex(this.getZIndex + 1)
-        this.domWidth = this.dom.offsetWidth;
-        this.domHeight = this.dom.offsetHeight;
+          this.setZIndex(this.getZIndex - 1)
+          this.domWidth = this.dom.offsetWidth;
+          this.domHeight = this.dom.offsetHeight;
           event.target.style.cursor = "move";
           // 鼠标按下位置 -> 定位盒子的距离
           // this.offsetX = event.offsetX
@@ -134,10 +144,16 @@ export default {
           this.offsetX = event.clientX - this.domOffsetLeft
           this.offsetY = event.clientY - this.domOffsetTop
 
-          this.$parent.updated()
+          this.widthStyle = Number(this.width.replace('px', '')) + 2 + 'px'
+          this.heightStyle = Number(this.height.replace('px', '')) + 4 + 'px'
 
+          this.$parent.key = this.$parent.uuid()
+          this.setBorderStyle(this.widthStyle, this.heightStyle, this.item.left - 2, this.item.top - 2)
+          this.setIsSelected(this.item.id)
+          localStorage.setItem('floorList', JSON.stringify(this.$parent.floorList))
+          this.$parent.updated()
           window.onmousemove = event => {
-            this.moveClac(this.dom)
+              this.moveClac(event, this.dom, this.widthStyle, this.heightStyle)
           };
       },
       /**
@@ -150,6 +166,7 @@ export default {
           let spaces = -space
           for (let i = 0; i < num; i++) {
               spaces = spaces + space
+
               result.push({
                   left: spaces + 'px',
               })
@@ -161,16 +178,18 @@ export default {
       getModelOption: {
           deep: true,
           handler(val, old) {
-              // let option = this.$parent.getArrayFromUUID(val, this.componentId)
-              // debugger
-              let option = val[this.index]
-              this.show = !option.isDeleted
-              let selectedId = this.$parent.selectedId
-              if(option.id === selectedId && !option.isDeleted) {
-                  this.setShelvesPosition(option.shelvesNum, option.shevlesSpace)
-                  this.num = option.shelvesNum
-                  this.space = option.shevlesSpace
-              }
+            // let option = this.$parent.getArrayFromUUID(val, this.componentId)
+            //
+            let option = val[this.index]
+            this.show = !option.isDeleted
+            let selectedId = this.$parent.selectedId
+            if (option.id === selectedId && !option.isDeleted) {
+                this.setShelvesPosition(option.shelvesNum, option.shevlesSpace)
+                this.num = option.shelvesNum
+                this.space = option.shevlesSpace
+                this.border = option.border
+                this.setBorderStyle(Number(this.width.replace('px', '')) + 2 + 'px', this.height, this.left - 2, this.top)
+            }
           }
       },
   }
@@ -179,18 +198,20 @@ export default {
 
 <style lang="scss" scoped>
     .shelves {
-      position: absolute;
-      height: 25vw;
-
-      .toolHG {
-        width: 2.4vw;
-        height: 25vw;
-        z-index: 1;
         position: absolute;
-        cursor: move;
+        width: 100%;
+        height: 480px;
 
-        .toolHGFragment {
-          display: flex;
+
+        .toolHG {
+            width: 46px;
+            height: 480px;
+            z-index: 1;
+            position: absolute;
+            cursor: move;
+
+            .toolHGFragment {
+                display: flex;
           flex-direction: column;
           justify-content: center;
           align-items: center;

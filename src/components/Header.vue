@@ -116,6 +116,7 @@ export default {
 
             span {
                 margin-right: 0.3vw;
+                white-space: nowrap;
 
                 &:last-child {
                     margin: 0;

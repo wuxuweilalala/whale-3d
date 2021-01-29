@@ -1,11 +1,6 @@
 <template>
     <div class="edit2"
       @mousedown="editMouseEvent">
-        <!--        <div class="sidebar">-->
-        <!--            <div class="backBtn" @click.stop="backClickEvent" ref="backBtn"></div>-->
-        <!--            <div class="help" @click.stop="addActive($event, 'helpActive')" ref="help"></div>-->
-        <!--        </div>-->
-
         <!-- 模型库 -->
         <div class="modelBase">
             <div class="modelBaseTitle">
@@ -66,9 +61,10 @@
                                   :key="indexChild"
                                   @click.native="changeChildIndex(indexChild, index)"
                                 ></div>
-                                <!--                                <div class="border" :style="borderStyle">-->
-
-                                <!--                                </div>-->
+                                <div class="border"
+                                  :style="borderStyle"
+                                  :key="key">
+                                </div>
                             </div>
                         </template>
 
@@ -230,14 +226,14 @@
     import huojia from '../../assets/2dEdit/huojia@2.png'; // 货架
     import tuiche from '../../assets/2dEdit/tuiche@2.png'; // 推车
     import tuita from '../../assets/2dEdit/tuita@2.png'; // 推塔
-    import psb from '../../assets/2dEdit/psb@2.png'; // 推塔
+    import psb from '../../assets/2dEdit/psb@2.png'; // psb
     import fenlianyuan from '../../assets/2dEdit/fenlianyuan@2.png'; // 分练员
     import gongzuozhan from '../../assets/2dEdit/gongzuozhan@2.png';
     import PSBPassageway from '../../assets/2dEdit/PSBPassageway.png';
     import pickingChannel from '../../assets/2dEdit/pickingChannel.png';
     import pickWay from '../../assets/2dEdit/pickWay.png';
     import pstWay from '../../assets/2dEdit/pstWay.png';
-    import {mapActions, mapGetters, mapMutations, mapState} from 'vuex'; // 推塔
+    import {mapActions, mapGetters, mapMutations, mapState} from 'vuex';
     import Vue from 'vue';
 
     export default {
@@ -249,6 +245,7 @@
         },
         data() {
             return {
+                // 模型库的数组
                 modelBaseList: [
                     {name: '货架', bg: 'carRack', bgImg: huojia, componentName: 'hj'},
                     {
@@ -259,38 +256,38 @@
                         create: true
                     },
                     {name: '轨道', bg: 'rack', bgImg: guidao, componentName: 'gd'},
-                    {
-                        name: '推车',
-                        bg: 'car',
-                        bgImg: tuiche,
-                        componentName: 'other',
-                        width: '1.6vw',
-                        height: '3.8vh'
-                    },
-                    {
-                        name: '堆塔',
-                        bg: 'box',
-                        bgImg: tuita,
-                        componentName: 'other',
-                        width: '1.4vw',
-                        height: '1.9vw'
-                    },
-                    {
-                        name: 'PSB',
-                        bg: 'psb',
-                        bgImg: psb,
-                        componentName: 'other',
-                        width: '2vw',
-                        height: '1.9vw'
-                    },
-                    {
-                        name: '分拣员',
-                        bg: 'people',
-                        bgImg: fenlianyuan,
-                        componentName: 'other',
-                        width: '1.3vw',
-                        height: '3.5vh'
-                    },
+                    // {
+                    //     name: '推车',
+                    //     bg: 'car',
+                    //     bgImg: tuiche,
+                    //     componentName: 'other',
+                    //     width: '1.6vw',
+                    //     height: '2.1vw'
+                    // },
+                    // {
+                    //     name: '堆塔',
+                    //     bg: 'box',
+                    //     bgImg: tuita,
+                    //     componentName: 'other',
+                    //     width: '1.4vw',
+                    //     height: '1.9vw'
+                    // },
+                    // {
+                    //     name: 'PSB',
+                    //     bg: 'psb',
+                    //     bgImg: psb,
+                    //     componentName: 'other',
+                    //     width: '2vw',
+                    //     height: '1.9vw'
+                    // },
+                    // {
+                    //     name: '分拣员',
+                    //     bg: 'people',
+                    //     bgImg: fenlianyuan,
+                    //     componentName: 'other',
+                    //     width: '1.3vw',
+                    //     height: '1.98vw',
+                    // },
                     // {
                     //     name: '工作站',
                     //     bg: 'station',
@@ -416,13 +413,20 @@
                 width: 6000,
                 height: 4000,
                 num: 200,
+                borderStyle: {},
+                key: this.uuid(),
+                docWidth: 0,        // 屏幕宽度
+                docHeight: 0,       // 屏幕高度
             };
         },
         created() {
             // this.initModelOption()
             this.initModelData()
-            if(localStorage.getItem('floorList')) {
+
+            // localStroge floorList 存储的是已经拖进来的模型
+            if (localStorage.getItem('floorList') !== null) {
                 this.floorList = JSON.parse(localStorage.getItem('floorList'))
+                // this.setBoxStyle()
                 this.width = this.floorList[0].width
                 this.height = this.floorList[0].height
                 this.num = this.floorList[0].num
@@ -435,6 +439,19 @@
             this.drawRules(1000, this.width);
             this.setFloorName();
             this.remove();
+            let infos = this.floorList[0].unitList[0].infoList
+            for (let i = 0; i < infos.length; i++) {
+                let info = infos[i]
+                info.border = ''
+            }
+            this.$nextTick(() => {
+                this.borderStyle = {}
+            })
+            let work = document.querySelector('.class-workPlace')
+            let rect = work.getBoundingClientRect()
+            sessionStorage.setItem('rect', JSON.stringify(rect))
+            this.docWidth = document.documentElement.clientWidth || document.body.clientWidth || window.innerWidth
+            this.docHeight = document.documentElement.clientHeight || document.body.clientHeight || window.innerHeight
         },
         beforeRouteEnter(to, form, next) {
             next(vm => {
@@ -445,8 +462,8 @@
             })
         },
         beforeRouteLeave(to, from, next) {
-            localStorage.removeItem('floorList')
-            localStorage.removeItem('modelOptions')
+            // localStorage.removeItem('floorList')
+            // localStorage.removeItem('modelOptions')
             next()
         },
         computed: {
@@ -485,6 +502,7 @@
             ...mapActions('index', {
                 creatProjectData: 'creatProjectData',
             }),
+            // 设置楼层名字
             setFloorName() {
                 let num = {
                     1: '一层',
@@ -495,6 +513,29 @@
                     this.floorList[0].floorName = '一层'
                 } else {
                     this.floorList[0].floorName = num[index]
+                }
+            },
+            setBoxStyle() {
+                let infos = this.floorList[0].unitList[0].infoList
+                let id = ''
+                for (let i = 0; i < infos.length; i++) {
+                    let info = infos[i]
+                    if (info.border != '') {
+                        id = info.id
+                        break
+                    }
+                }
+                let items = this.floorList[0].componentList[0].itemList
+                for (let i = 0; i < items.length; i++) {
+                    let item = items[i]
+                    if (item.id == id) {
+                        this.borderStyle = {
+                            width: item.widthStyle,
+                            height: Number(item.heightStyle.replace('px', '')) + 4 + 'px',
+                            top: item.topStyle + 'px',
+                            left: item.leftStyle + 'px',
+                        }
+                    }
                 }
             },
             // 绘制线条
@@ -533,28 +574,30 @@
                 context.fillStyle = "rgba(54, 55, 56, 1)";
                 context.fillRect(x, x, w, h);
             },
+            // 画水平标尺
             drawLevelRule(context, left, h, width) {
                 let numIndex = -5
                 for (let i = 0; i < width; i++) {
-                    let height = 0.26
-                    let x = i * this.$vwToPx(0.7) + left;
+                    let height = 5
+                    let x = i * 13.5 + left;
                     // console.log('x xxxxxxxx', x)
                     context.beginPath();
                     context.strokeStyle = 'rgba(128, 128, 128, 1)';
-                    context.lineWidth = this.$vwToPx(0.05);
+                    context.lineWidth = 1;
                     context.moveTo(x, h);
                     // console.log('(i + 1) % 4', (i + 1) % 4)
                     if ((i + 1) % 4 == 0) {
-                        height = 0.52
+                        height = 10
                         context.font = `${h}px ArialMT`;
                         context.fillStyle = "rgba(239, 239, 239, 1)";
                         context.fillText(`${numIndex}`, x + 1, 12);
                         numIndex += 1
                     }
-                    context.lineTo(x, h - this.$vwToPx(height));
+                    context.lineTo(x, h - height);
                     context.stroke();
                 }
             },
+            // 画垂直标尺
             drawVerticalRule(context, width = 1000) {
                 let numIndex = 1
                 let start = this.$vwToPx(0.61)
@@ -789,18 +832,15 @@
             },
             // 鼠标按下(图标)
             mouseDownEvent(event) {
-                console.log('test *********')
                 this.draggable = true;
             },
             // 拖拽中...(图标)
             modelDragEvent(event) {
-                // console.log('拖拽事件', event)
                 this.mouseX = event.clientX;
                 this.mouseY = event.clientY;
             },
             // 拖拽开始
             modelDragstartEvent(event, item) {
-                console.log('拖拽事件')
                 this.addModule = true;
                 this.dragItem = item;
                 this.dom1Left = 0;
@@ -815,20 +855,22 @@
                         id: this.componentId,
                         name: this.dragItem.name,
                         shelvesNum: 1,
-                        shevlesSpace: 60,
+                        shevlesSpace: 90,
                         num: 1,
-                        space: 60,
+                        space: 90,
                         isDeleted: false,
+                        border: '',
                     })
                 } else if(name === '堆塔') {
                     this.setModelOptions({
                         id: this.componentId,
                         name: this.dragItem.name,
                         boxColumns: 1,
-                        boxSpace: 60,
+                        boxSpace: 62,
                         num: 1,
-                        space: 60,
+                        space: 62,
                         isDeleted: false,
+                        border: '',
                     })
                 } else if(name === '轨道') {
                     this.setModelOptions({
@@ -837,19 +879,20 @@
                         trackNum: 1,
                         trackWidth: '2.8vw',
                         num: 1,
-                        space: 60,
+                        space: 62,
                         isDeleted: false,
+                        border: '',
                     })
                 } else {
                     this.setModelOptions({
                         id: this.componentId,
                         name: this.dragItem.name,
                         num: 1,
-                        space: 60,
+                        space: 62,
                         isDeleted: false,
+                        border: '',
                     })
                 }
-
             },
             // 生成 uuid
             uuid() {
@@ -874,8 +917,12 @@
                     this.getParentTag(this.$refs.workPlace[this.thisFloorIndex]);
                     let left = event.clientX - this.dom1Left;
                     let top = event.clientY - this.dom1Top;
-
-
+                    let items = this.floorList[0].componentList[0].itemList
+                    for (let i = 0; i < items.length; i++) {
+                        let item = items[i]
+                        item.isSelected = false
+                    }
+                    sessionStorage.setItem('isDrag', true)
                     if (this.dragItem.width) {
                         this.floorList[0].componentList[0].itemList.push({
                             id: this.componentId,
@@ -889,8 +936,8 @@
                             bgImg: this.dragItem.bgImg,
                             width: this.dragItem.width,
                             height: this.dragItem.height,
-                            offsetParentLeft: this.dom1Left,
-                            offsetParentTop: this.dom1Top,
+                            offsetParentLeft: this.dom1Left / this.docWidth,
+                            offsetParentTop: this.dom1Top / this.docHeight,
                             border: '',
                             offset: {
                                 x: this.offset.x,
@@ -898,6 +945,8 @@
                             },
                             generateModelName: this.dragItem.name,
                             isDeleted: false,
+                            isSelected: true,
+                            isDrag: true,
                         });
                     } else {
                         this.floorList[0].componentList[0].itemList.push({
@@ -908,14 +957,16 @@
                             top: top + this.scrollTop,
                             border: '',
                             bgImg: this.dragItem.bgImg,
-                            offsetParentLeft: this.dom1Left,
-                            offsetParentTop: this.dom1Top,
+                            offsetParentLeft: this.dom1Left / this.docWidth,
+                            offsetParentTop: this.dom1Top / this.docHeight,
                             offset: {
                                 x: this.offset.x,
                                 y: this.offset.y
                             },
                             generateModelName: this.dragItem.name,
                             isDeleted: false,
+                            isSelected: true,
+                            isDrag: true,
                         });
                     }
 
@@ -1163,6 +1214,7 @@
             // 校准轨道
             correctTracks(trackList, array) {
                 let width = 0
+                // 获取 width
                 if(array.length > 0) {
                     let arr = this.recursionList(array)
                     width = Number(arr[arr.length - 1].style.left.replace('px', '')) - Number(arr[0].style.left.replace('px', ''))
@@ -1187,7 +1239,7 @@
                 //     }
                 // }
                 if (tracks.length > 0) {
-                    tracks[0].style.left = this.$vwToPx(17.25) + 'px'
+                    tracks[0].style.left = this.$vwToPx(17.3) + 'px'
                 }
                 for (let i = 0; i < tracks.length - 1; i++) {
                     let left = Number(tracks[i].style.left.replace('px', ''))
@@ -1218,7 +1270,7 @@
                         let left = Number(arr.style.left.replace('px', ''))
                         let width = Number(arr.style.width.replace('px', ''))
                         let name = arr.dataset.name
-                        arrs[i + 1].style.left = left + width + 8.8 + 'px'
+                        arrs[i + 1].style.left = left + width + 7.6 + 'px'
                     }
                 }
             },
@@ -1353,12 +1405,13 @@
             // 获取模型数据
             getModelArray() {
                 let modelDoms = this.recursionList(Array.from(this.getAllDom()))
-                let result = []
-                let psbs = []
-                let peoples = []
+                let result = []     // 货架数组
+                let psbs = []       // psb 数组
+                let peoples = []    // 分拣员数组
                 let peopleDoms = []
-                let cars = []
+                let cars = []       // 小车 数组
                 let carDoms = []
+                let psts = []       // pst 数组
                 let k = 0
                 let x = 1
                 for (let i = 0; i < modelDoms.length; i++) {
@@ -1369,9 +1422,18 @@
                         num = 1
                     }
                     // console.log('num', num, model)
+                    /**
+                     *  2020/11/25 11:53
+                     *  author hfm
+                     *  name: 'station', // 名称
+                     *  num: 1,         // 模型数量
+                     *  space: 60,      // 2d 编辑器的间距
+                     *  x: x,           // 生成模型的位置下标
+                     *  index: index,   // 拖进画布的顺序
+                     *
+                     */
                     let index = Number(model.dataset.index)
                     let deleted = Boolean(model.dataset.deleted)
-                    console.log('deleted', deleted)
                     if(!deleted) {
                         if(name === '工作站') {
                             result.push({
@@ -1393,6 +1455,13 @@
                             x = x + num
                         } else if(name === 'PST通道') {
                             result.push({
+                                name: 'pstWay',
+                                num: num,
+                                space: Number(model.dataset.space) - 46 || 0,
+                                x: x,
+                                index: index,
+                            })
+                            psts.push({
                                 name: 'pstWay',
                                 num: num,
                                 space: Number(model.dataset.space) - 46 || 0,
@@ -1460,6 +1529,7 @@
                     shelve: result,
                     psb: psbs,
                     peoples: peoples,
+                    psts: psts,
                 }
             },
             // 冒泡排序 排序 people car
@@ -1557,11 +1627,10 @@
                 // 排序 people car
                 let peoples = this.sortArray(sorterList)
                 let cars = this.sortArray(gardenCartList)
-                console.log('arr rrrrrrr', peoples, cars)
                 // 校准轨道
                 this.correctTracks(TrackList, arr)
                 // 校准高度
-                this.correctAllTop(arr, 78)
+                this.correctAllTop(arr, 18)
                 // 校准左边的位置
                 this.correctAllLeft(stationWays, TrackList)
                 // 校准psb
@@ -1573,12 +1642,15 @@
 
                 this.updataDate()
 
+                this.setBorderStyle(this.selectedId)
+                localStorage.setItem('floorList', JSON.stringify(this.floorList))
             },
             // px 转 number
             pxToNum(px) {
                 let num = px.replace("px", "") * 1;
                 return num;
             },
+            // 以元素的 left 进行冒泡排序
             recursionList(Arr) {
                 for (let i = 0; i < Arr.length; i++) {
                     for (let j = 0; j < Arr.length - 1; j++) {
@@ -1592,6 +1664,16 @@
                 }
                 return Arr
             },
+            download(name, data) {
+                var urlObject = window.URL || window.webkitURL || window;
+
+                var downloadData = new Blob([data]);
+
+                var save_link = document.createElementNS("http://www.w3.org/1999/xhtml", "a")
+                save_link.href = urlObject.createObjectURL(downloadData);
+                save_link.download = name;
+                save_link.click();
+            },
             // 生成
             generate(msgBool=true) {
                 // 生成之前先校准
@@ -1600,8 +1682,24 @@
                 // this.modelData.push(this.getModelArray())
                 // let index = Number(this.$route.query.index) - 1
                 this.modelData = this.getModelArray()
+
                 console.log('this model Data', this.modelData)
+                // this.download('floorList.json', JSON.stringify(this.floorList, null, 4))
+                // this.download('modelOptions.json', JSON.stringify(this.modelOptions, null, 4))
+                // this.download('modelData.json', JSON.stringify(this.modelData, null, 4))
+
+                // modelData 是生成模型所需的数据
+                // floorList 是初始化 2d 编辑器 画布上所生成的组件
                 localStorage.setItem('modelData', JSON.stringify(this.modelData))
+                if (this.$route.query.index == 1) {
+                    localStorage.setItem('floorListF1', JSON.stringify(this.floorList))
+                    localStorage.setItem('modelOptionsF1', JSON.stringify(this.modelOptions))
+                    localStorage.setItem('modelDataF1', JSON.stringify(this.modelData))
+                } else if (this.$route.query.index == 2) {
+                    localStorage.setItem('floorListF2', JSON.stringify(this.floorList))
+                    localStorage.setItem('modelOptionsF2', JSON.stringify(this.modelOptions))
+                    localStorage.setItem('modelDataF2', JSON.stringify(this.modelData))
+                }
                 return this.modelData
                 // if(msgBool) {
                 //     this.$message({
@@ -1629,12 +1727,11 @@
                 if (index !== -1) {
                     // console.log('result', result, index)
                     result[index].isDeleted = true
-                    // debugger
                     this.setOptions(result)
                     this.delLayer(id);
                     this.updataDate()
+                    this.borderStyle = {}
                 }
-
             },
             deleteClickEvent(event) {
                 // this.addActive(event, 'operation');
@@ -1664,7 +1761,6 @@
                         this.floorList[0].num = this.width / 30;
                         localStorage.setItem('floorList', JSON.stringify(this.floorList))
                     })
-
                 }
                 if (this.posNum == '') {
                     if (option['num'] !== -1) {
@@ -1673,19 +1769,19 @@
                         num = 1
                     }
                 }
-                if (this.posSpace == '') {
-                    if (option['space'] !== -1) {
-                        space = option.space
-                    } else {
-                        space = 60
-                    }
-                }
+                // if (this.posSpace == '') {
+                //     if (option['space'] !== -1) {
+                //         space = option.space
+                //     } else {
+                //         space = 65
+                //     }
+                // }
+                space = 54
                 num = Number(num)
-                space = Number(space)
-                if(this.selectedElement.classList.contains('track-list')) {
+                if (this.selectedElement.classList.contains('track-list')) {
                     this.setModelOptions({
                         id: option.id,
-                        trackWidth: num * 2.8 + 'vw',
+                        trackWidth: num * 53 + 'px',
                         trackNum: parseInt(num),
                         num: num,
                         index: this.selectedIndex,
@@ -1693,7 +1789,7 @@
                         name: '轨道',
                         isDeleted: false,
                     })
-                    this.floorList[0].componentList[0].itemList[this.selectedIndex].trackWidth = num * 2.8 + 'vw'
+                    this.floorList[0].componentList[0].itemList[this.selectedIndex].trackWidth =  num * 53 + 'px'
                     this.floorList[0].componentList[0].itemList[this.selectedIndex].trackNum = parseInt(num)
                 } else if(this.selectedElement.classList.contains('shelves')) {
                     this.setModelOptions({
@@ -1748,12 +1844,12 @@
                     }
                 } else if(name === 'num') {
                     if(this.posNum !== '') {
-                        this.setNumOrSpace(this.posNum, this.posSpace)
+                        this.setNumOrSpace(this.posNum)
                     }
                 } else if(name === 'space') {
-                    if(this.posSpace !== '') {
-                        this.setNumOrSpace(this.posNum, this.posSpace)
-                    }
+                    // if(this.posSpace !== '') {
+                    //     this.setNumOrSpace(this.posNum, this.posSpace)
+                    // }
                 }
                 this.updataDate()
             },
@@ -1808,6 +1904,8 @@
                         if(id === item.id) {
                             item.left = this.pxToNum(arr.style.left)
                             item.top = this.pxToNum(arr.style.top)
+                            item.leftStyle = this.pxToNum(arr.style.left)
+                            item.topStyle = this.pxToNum(arr.style.top)
                         }
                     }
                 })
@@ -1846,6 +1944,8 @@
                     sessionStorage.setItem('isEdit', true)
                     let modelData = this.generate()
                     localStorage.setItem('modelData', JSON.stringify(modelData))
+                    localStorage.setItem('floorList', JSON.stringify(this.floorList))
+                    localStorage.setItem('modelOptions', JSON.stringify(this.getModelOption))
                     this.$router.push({
                         path: '/index/scene'
                     })
@@ -1956,29 +2056,59 @@
                 //     model[0].style.border = '0.05vw solid rgba(230, 162, 64, 1)'
                 // }
             },
+            setBorderStyle(id) {
+                let items = this.floorList[0].componentList[0].itemList
+                for (let i = 0; i < items.length; i++) {
+                    let item = items[i]
+                    console.log('item.heightStyle', item.heightStyle)
+                    if (item.id == id) {
+                        item.isSelected = true
+                        this.key = this.uuid()
+                        this.$nextTick(() => {
+                            this.borderStyle = {
+                                width: item.widthStyle,
+                                height: Number(item.heightStyle.replace('px', '')) + 3 + 'px',
+                                top: item.topStyle - 2 + 'px',
+                                left: item.leftStyle - 2 + 'px',
+                            }
+                        })
+
+
+                    } else {
+                        item.isSelected = false
+                    }
+                }
+            },
             // 点击图层中的名字
             modelNameClickEvent(id, index) {
-                console.log('点击')
                 this.showBorder(index)
+                this.setBorderStyle(id)
             },
             removeClickEvent(id, index) {
-                console.log('id', id, index)
                 this.removeModel(id)
             },
         },
         beforeDestroy() {
             // localStorage.removeItem('floorList')
             // localStorage.removeItem('modelOptions')
+            // console.log('floorList', this.floorList)
+        },
+        beforeUpdate() {
+            // console.log('floorList', this.floorList[0].componentList[0].itemList)
         },
         watch: {
-            // selectedElement:{
-            // handler(val, old) {
-            //     this.log('val ((((((((((', val, old)
-            //     if(val === null) {
-            //         this.posContent.none = true
-            //     }
-            // }
-            // }
+            selectedElement: {
+                handler(val, old) {
+                    // if(val != null) {
+                    //     this.setZIndex(this.getZIndex + 1)
+                    // }
+                }
+            },
+            borderStyle: {
+                handler(val, old) {
+                    // console.log('val', val, old)
+                }
+            },
         }
     };
 </script>
@@ -2382,7 +2512,7 @@
                         font-size: 0.73vw;
 
                         span {
-                            width: 1.5vw;
+                            width: 2.5vw;
                             display: inline-block;
                             margin-left: 1.5vw;
                             margin-right: 2.6vw;

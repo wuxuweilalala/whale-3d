@@ -23,7 +23,8 @@ module.exports = {
                 // }
             ]
         }
-    }
+    },
+
 
 }
 // vue.config.js
@@ -31,5 +32,12 @@ module.exports = {
     transpileDependencies: [
         'vue-echarts',
         'resize-detector'
-    ]
+    ],
+    // devServer:{
+    //     host:'xxx.com',
+    //     port:3031,
+    //     hot:true,
+    //     disableHostCheck: true
+    // },
+
 }

@@ -7,7 +7,6 @@ export default {
 	namespaced: true,
 	state: {
 		stationOptions: [],
-
 		mould: {
 			psb: null,
 			shelvestrack: null,
@@ -17,8 +16,11 @@ export default {
 			box: null,
 			robot: null,
 			car: null,
+			pst:null,
+			pstTrack:null,
 		},
 		initState: 0,
+		pstTrackOptions:[]
 	},
 	getters: {
 		getStationOptions: (state, getters, rootState,rootGetter) => {
@@ -28,13 +30,13 @@ export default {
 			let useArea = parseInt(currentProjectData.areaInfo[1].value.width) * 1000 * 0.05
 			let list = currentProjectData.sceneOption;
 			let floorNum=list.length
-			// let num = 0;
+			let num = 0;
 			state.stationOptions=[]
 			for (let j = 0; j < floorNum; j++) {
                 for (let i = 0; i < Number(list[j].stationNum); i++) {
                     let site = creatCoordinate(useArea, i, 0, 0);
-                    let station = {  //默认配置
-                        name: `station${i}-${i}`,//工作站名称
+                    let station = {  //默认配置-
+                        name: `workStation${j}-${i}`,//工作站名称
                         stationSite: {x: site.vertical , y:j*185, z: site.horizontal},//工作站位置
                         shelvesNum:Number(list[j].shelvesUnitNum),
                         stationNum: Number(list[j].stationNum),
@@ -44,7 +46,15 @@ export default {
                     };
                     state.stationOptions.push(station);
                 }
-			}
+                // pst轨道位置配置
+				let stations=state.stationOptions
+				state.pstTrackOptions.push({
+					name:stations[num].name.split('-')[0],
+					start:stations[num].stationSite,  // j层第一个货架坐标
+					end:stations.slice(-1)[0].stationSite  //j层最后一个的坐标
+				})
+				num+=Number(list[j].stationNum) //每一层的PST轨道最小值位置
+				}
 			return state.stationOptions;
 		},
 		getMould: state => {
@@ -53,6 +63,7 @@ export default {
 		getInitState: state => {
 			return state.initState;
 		},
+		getPstTrack:state=>state.pstTrackOptions
 	},
 	mutations: {
 
@@ -84,7 +95,7 @@ export default {
 				up.scene.traverse((obj) => {
 					if(obj.isMesh) {
 						let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/gray.jpg');
-						var material = new THREE.MeshStandardMaterial({
+						let material = new THREE.MeshStandardMaterial({
 							color: 0xff7f29,
 							// transparent: true,
 							// opacity: 1,
@@ -98,36 +109,14 @@ export default {
 				state.mould.psb = up.scene;
 				state.initState++;
 			});
-			// //拣货人
-			// loader.load(process.env.BASE_URL +'mould/Robotaction/Robotaction.gltf', mesh => {
-			// 	state.mould.robot=mesh;
-			// 	state.initState++
-			// })
 			//货车
 			loader.load(process.env.BASE_URL + 'mould/car111.gltf', (gltf) => {
 				state.mould.car = gltf.scene;
 				state.initState++;
 			});
-			//货车
-			// loader.load(process.env.BASE_URL + 'mould/car.glb', (obj) => {
-			// 	state.mould.car = obj.scene;
-			// 	state.initState++;
-			// });
+
 			//轨道
 			loader.load(process.env.BASE_URL + 'mould/shelvestrack.gltf', (gltf) => {
-				// gltf.scene.traverse((obj) => {
-				// 	if(obj.isMesh) {
-				// 		let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/gray.png');
-				// 		var material = new THREE.MeshBasicMaterial({
-				// 			// color: 0xd88657,
-				// 			// transparent: true,
-				// 			// opacity: 0.4,
-				// 			map: texture,
-				// 		});
-				// 		// material.color.setRGB(1, 1, 1);
-				// 		obj.material = material
-				// 	}
-				// })
 				state.mould.shelvestrack = gltf.scene;
 				state.initState++;
 			});
@@ -137,9 +126,6 @@ export default {
                     if(obj.isMesh) {
 						let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/box3.jpg');
 						var material = new THREE.MeshLambertMaterial({
-							// color: 0x71767c,
-							// transparent: true,
-							// opacity: 0.8,
 							map: texture,
 						});
 						obj.material = material
@@ -153,8 +139,6 @@ export default {
 				obj.scene.children[0].geometry.center();
 				obj.scene.traverse((obj) => {
 					if (obj.isMesh) {
-						// let texture = new THREE.TextureLoader().load(process.env.BASE_URL + 'mould/maps/station.jpg');
-						// texture.wrapS = texture.wrapT = self.$THREE.RepeatWrapping;
 						var material = new THREE.MeshPhongMaterial({
 							color: 0x1c1e1d,
 							transparent: true,
@@ -184,6 +168,35 @@ export default {
 					}
 				})
 				state.mould.sowwall = obj.scene;
+				state.initState++;
+			});
+			// pst
+			loader.load(process.env.BASE_URL + 'mould/pst.glb', (obj) => {
+				obj.scene.traverse((obj) => {
+					if (obj.isMesh) {
+						var material = new THREE.MeshPhongMaterial({
+							color: '#ff6941',
+							transparent: true,
+						});
+						obj.material = material
+					}
+				})
+				state.mould.pst = obj.scene;
+				state.initState++;
+			});
+			// pst轨道
+			loader.load(process.env.BASE_URL + 'mould/pstTrack3.glb', (obj) => {
+				obj.scene.traverse((obj) => {
+					if (obj.isMesh) {
+						var material = new THREE.MeshStandardMaterial({
+							color: 0x673a10,
+							transparent: true,
+							opacity: 0.8,
+						});
+						obj.material = material
+					}
+				})
+				state.mould.pstTrack = obj.scene;
 				state.initState++;
 			});
 		},

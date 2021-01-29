@@ -242,7 +242,7 @@
                       name="上一步"/>
                     <global-button @click.native="createProject"
                       class="createBtn"
-                      name="创建"/>
+                      :name="getBtnName"/>
                 </div>
             </div>
         </div>
@@ -451,7 +451,6 @@
                 projectBoxWidth: 0,
                 projectBoxHeight: 0,
                 projectInnerShow: true,
-                sceneOptionShow: false,
                 isShareDialogShow: false,
                 shareLinkShow: false,
                 radio: 0,
@@ -519,8 +518,11 @@
                 enterShow: false,
                 enterF2Show: false,
                 modelData: basicData,  // 生成模型需要的数据
-                modelDataF1: basicData[0],
-                modelDataF2: basicData[0],
+                modelDataF1: basicData.modelData[0],
+                modelDataF2: basicData.modelData[0],
+                // modelOptions: basicData.modelOptions,
+                // floorList: basicData.floorList,
+
             };
         },
         props: {
@@ -533,6 +535,13 @@
                 isCreateWrapperShow: 'getIsCreateWrapperShow',
                 projectList: 'getProjectList',
                 getCurrentProject: 'getCurrentProject',
+                sceneOptionShow: 'getSceneOptionShow',
+                againEdit: 'getAgainEdit',
+                enterState: 'getEnterState',
+                getProjectName: 'getProjectName',
+            }),
+            ...mapGetters('edit', {
+                getBtnName: 'getBtnName',
             }),
             projectListFilter() {
                 return this.projectList.slice((this.currentPage - 1) * 4, (this.currentPage - 1) * 4 + 4)
@@ -542,7 +551,6 @@
                 return `我的项目${projectNum}`;
             },
             currentProjectAreaNum() {
-
                 return this.currentProjectData.projectDetail.areaNum;
             },
             currentProjectUsedAreaNum() {
@@ -600,6 +608,9 @@
                 setProjectIdAndUrl: 'setProjectIdAndUrl',
                 setCurrentProjectData: 'setCurrentProjectData',
                 setIsCreate: 'setIsCreate',
+                setSceneOptionShow: 'setSceneOptionShow',
+                setAgainEdit: 'setAgainEdit',
+                setMachineList: 'setMachineList',
             }),
             ...mapActions('index', {
                 creatProjectData: 'creatProjectData',
@@ -607,7 +618,8 @@
                 deleteProject: 'deleteProject'
             }),
             resetProjectInfo() {
-                this.sceneOptionShow = false
+                // this.sceneOptionShow = false
+                this.setSceneOptionShow(false)
                 this.projectName = '';
                 this.toggleFloorTabActiveIndex(0)
                 this.sceneOption.splice(0, this.sceneOption.length, {
@@ -671,12 +683,31 @@
                     this.areaTipShow = true;
                 } else {
                     this.handleIsCreateWrapperShow(false);
-                    this.sceneOptionShow = true;
+                    // this.sceneOptionShow = true;
+                    this.setSceneOptionShow(true)
                     this.setAreaValue(80, 60);
                 }
-
             },
             createWrapperShow() {
+                this.$store.commit('edit/setBtnName', '创建')
+                sessionStorage.setItem('againEdit', false)
+                this.enterShow = this.enterF2Show = false
+                this.basicType = this.basicF2Type = {
+                    type: true,
+                    typeActive: true,
+                    basic: true,
+                }
+                this.editType = this.editF2Type = {
+                    type: true,
+                    typeActive: false,
+                    edit: true,
+                }
+                this.hasType = {
+                    type: true,
+                    typeActive: false,
+                    has: true,
+                    disabled: true,
+                }
                 // 判断如果 >= 20 个就提示不能再添加项目
                 if (this.projectList.length >= 20) {
                     // 打来弹框
@@ -692,7 +723,7 @@
                     shelvesUnitNum: '',
                     id: 'P-PMS02'
                 })
-                this.modelData.push(basicData[0])
+                // this.modelData.push(basicData.modelData[0])
             },
             deleteFloor() {
                 this.toggleFloorTabActiveIndex(0)
@@ -757,7 +788,8 @@
                 // console.log('set value ', this.sceneOption)
             },
             setAllOption() {
-                this.sceneOptionShow = false
+                // this.sceneOptionShow = false
+                this.setSceneOptionShow(false)
                 this.projectName = '';
                 this.whalehouseID = '';
                 this.requestUrl = '';
@@ -769,14 +801,130 @@
             getShevleNum(modelData) {
                 let num = 0
                 for (let i = 0; i < modelData[0].shelve.length; i++) {
-                    let she = modelData[0].shelve[i]
-                    num = num + she.num
+                    let name = modelData[0].shelve[i].name
+                    if (name == 'shelve') {
+                        let she = modelData[0].shelve[i]
+                        num = num + she.num
+                    }
                 }
                 return num
             },
+            getFloorAndOption() {
+                let floorF1 = localStorage.getItem('floorListF1')
+                let floorF2 = localStorage.getItem('floorListF2')
+                let floorList = []
+                if (floorF1 !== null) {
+                    floorList.push(JSON.parse(floorF1))
+                } else {
+                    floorList.push([])
+                }
+                if (floorF2 !== null) {
+                    floorList.push(JSON.parse(floorF2))
+                } else {
+                    floorList.push([])
+                }
+                let modelOptions = []
+                let modelF1 = localStorage.getItem('modelOptionsF1')
+                let modelF2 = localStorage.getItem('modelOptionsF2')
+                if (modelF1 !== null) {
+                    modelOptions.push(JSON.parse(modelF1))
+                } else {
+                    modelOptions.push([])
+                }
+                if (modelF2 !== null) {
+                    modelOptions.push(JSON.parse(modelF2))
+                } else {
+                    modelOptions.push([])
+                }
+                return {
+                    floorList,
+                    modelOptions,
+                }
+            },
+            getAllArray() {
+                let modelOptions = []
+                let floorList = []
+                let modelData = []
+                let proDetail = this.currentProjectData.projectDetail
+                if (this.basicType.typeActive == true) {
+                    modelOptions.push(basicData.modelOptions)
+                    floorList.push(basicData.floorList)
+                    modelData.push(basicData.modelData[0])
+                } else {
+                    let modelOption = JSON.parse(localStorage.getItem('modelOptionsF1'))
+                    if (modelOption != null) {
+                        modelOptions.push(modelOption)
+                    } else {
+                        modelOptions.push(proDetail.modelOptions[0])
+                    }
+                    let floor = JSON.parse(localStorage.getItem('floorListF1'))
+                    if (floor != null) {
+                        floorList.push(floor)
+                    } else {
+                        floorList.push(proDetail.floorList[0])
+                    }
+                    let data = JSON.parse(localStorage.getItem('modelDataF1'))
+                    if (data != null) {
+                        modelData.push(data)
+                    } else {
+                        modelData.push(proDetail.modelData[0])
+                    }
+                }
+                if (this.sceneOption.length == 2) {
+                    if (this.basicF2Type.typeActive == true) {
+                        modelOptions.push(basicData.modelOptions)
+                        floorList.push(basicData.floorList)
+                        modelData.push(basicData.modelData[0])
+                    } else if (this.hasType.typeActive == true) {
+                        let modelOptionF1 = JSON.parse(localStorage.getItem('modelOptionsF1'))
+                        if (modelOptionF1 != null) {
+                            modelOptions.push(modelOptionF1)
+                        } else {
+                            modelOptions.push(proDetail.modelOptions[0])
+                        }
+                        let floorF1 = JSON.parse(localStorage.getItem('floorListF1'))
+                        if (floorF1 != null) {
+                            floorList.push(floorF1)
+                        } else {
+                            floorList.push(proDetail.floorList[0])
+                        }
+                        let data = JSON.parse(localStorage.getItem('modelDataF1'))
+                        if (data != null) {
+                            modelData.push(data)
+                        } else {
+                            modelData.push(proDetail.modelData[0])
+                        }
+                    } else if (this.editF2Type.typeActive == true) {
+                        let floorF2 = JSON.parse(localStorage.getItem('floorListF2'))
+                        if (floorF2 != null) {
+                            floorList.push(floorF2)
+                        } else {
+                            floorList.push(proDetail.floorList[1])
+                        }
+                        let modelOptionF2 = JSON.parse(localStorage.getItem('modelOptionsF2'))
+                        if (modelOptionF2 != null) {
+                            modelOptions.push(modelOptionF2)
+                        } else {
+                            modelOptions.push(proDetail.modelOptions[1])
+                        }
+                        let data = JSON.parse(localStorage.getItem('modelDataF2'))
+                        if (data != null) {
+                            modelData.push(data)
+                        } else {
+                            modelData.push(proDetail.modelData[1])
+                        }
+                    }
+                }
+                return {
+                    modelOptions,
+                    floorList,
+                    modelData,
+                }
+            },
             createProject() {
                 if (!this.stationTipShow) {
-                    this.sceneOptionShow = false;
+                    // this.sceneOptionShow = false;
+                    this.setSceneOptionShow(false)
                     this.setSceneOptionValue();
                     let sceneOption = JSON.parse(JSON.stringify(this.sceneOption));
                     const {
@@ -798,9 +946,12 @@
                         projectName = this.projectName
                     }
                     this.setIsCreate(true)
-                    let modelData = [this.modelDataF1, this.modelDataF2]
-                    debugger
-                    let shelveNum = this.getShevleNum(modelData)
+                    // let modelData = [this.modelDataF1, this.modelDataF2]
+                    let option = this.getFloorAndOption()
+                    let all = this.getAllArray()
+
+                    let shelveNum = this.getShevleNum(all.modelData)
+
                     this.creatProjectData({
                         projectName,
                         areaInfo: [{
@@ -820,10 +971,12 @@
                         sceneOption: sceneOption,
                         whalehouseID: whalehouseID,
                         requestUrl: requestUrl,
-                        modelData: modelData,
+                        modelData: all.modelData,
+                        floorList: all.floorList,
+                        modelOptions: all.modelOptions,
                         machineInfo: [{
-                                value: stationNum
-                            },
+                            value: stationNum
+                        },
                             {
                                 value: shelveNum
                             },
@@ -840,6 +993,14 @@
                     this.toggleFloorTabActiveIndex(0)
                     sessionStorage.setItem('isEdit', false)
                     localStorage.removeItem('modelData')
+                    localStorage.removeItem('modelDataF1')
+                    localStorage.removeItem('modelDataF2')
+                    localStorage.removeItem('floorList')
+                    localStorage.removeItem('floorListF1')
+                    localStorage.removeItem('floorListF2')
+                    localStorage.removeItem('modelOptions')
+                    localStorage.removeItem('modelOptionsF1')
+                    localStorage.removeItem('modelOptionsF2')
                     // this.$router.push({
                     //     path: '/preview'
                     // })
@@ -876,9 +1037,10 @@
             // 上一步操作的点击事件
             previousStep() {
                 this.handleIsCreateWrapperShow(true);
-                this.sceneOptionShow = false;
+                // this.sceneOptionShow = false;
+                this.setSceneOptionShow(false)
                 this.resetProjectInfo();
-                if(sessionStorage.getItem('isEdit') === 'true') {
+                if (sessionStorage.getItem('isEdit') === 'true') {
                     let projectData = JSON.parse(sessionStorage.getItem('projectData'))
                     this.projectName = projectData.projectName
                 } else {
@@ -931,12 +1093,31 @@
                 this.changeActiveProjectIndex(index + (this.currentPage - 1) * 4)
                 this.iconShow = true
                 let projectId = this.getCurrentProject.id;
+                this.$get('sorterDataReadOrWrite').then(res => {
+                    if(res.code == 200) {
+                        let data = res.data
+                        this.setMachineList([])
+                        for (let i = 0, len = data.length; i < len; i++) {
+                            let d = data[i]
+                            if(d.projectId == projectId) {
+                                this.setMachineList(d.list)
+                            }
+                        }
+                    }
+                }).catch(err => {
+                    console.error(err)
+                })
                 this.setCurrentProjectId(projectId);
                 sessionStorage.setItem('projectId', projectId)
                 // localStorage.setItem('projectId', projectId)
                 this.setProjectIdAndUrl({
                     id: this.getCurrentProject.projectDetail.whalehouseID,
                     url: this.getCurrentProject.projectDetail.requestUrl,
+                })
+                this.$store.commit('index/setCurrentProjectData', {
+                    projectId: -1,
+                    bool: false,
+                    projectData: [],
                 })
             },
             /**
@@ -949,7 +1130,7 @@
                     this.basicType.typeActive = true
                     this.editType.typeActive = false
                     this.enterShow = false
-                    this.modelDataF1 = basicData[0]
+                    this.modelDataF1 = basicData.modelData[0]
                 } else if(list.contains('edit')) {
                     this.basicType.typeActive = false
                     this.editType.typeActive = true
@@ -975,26 +1156,69 @@
                     this.basicF2Type.typeActive = true
                     this.enterF2Show = false
                     // this.modelData = [basicData[0], basicData[0]]
-                    this.modelDataF2 = basicData[0]
+                    this.modelDataF2 = basicData.modelData[0]
                 } else if (list.contains('has') && !this.hasType.disabled) {
                     this.setTypeFalse()
                     this.hasType.typeActive = true
                     this.enterF2Show = false
                     if (localStorage.getItem('modelData') !== null) {
                         // this.modelData.push(JSON.parse(localStorage.getItem('modelData')))
-                        console.log('this model data', this.modelData)
+                        // console.log('this model data', this.modelData)
                         let data = JSON.parse(localStorage.getItem('modelData'))
                         this.modelDataF2 = data[0]
-                        console.log('this.modelDataF2', this.modelDataF2)
+                        // console.log('this.modelDataF2', this.modelDataF2)
                     } else {
-                        this.modelDataF2 = basicData[0]
+                        this.modelDataF2 = basicData.modelData[0]
                     }
-                } else if(list.contains('edit')) {
+                } else if (list.contains('edit')) {
                     this.setTypeFalse()
                     this.editF2Type.typeActive = true
                     this.enterF2Show = true
-                    if(localStorage.getItem('modelData') !== null) {
+                    if (localStorage.getItem('modelData') !== null) {
                         this.modelDataF2 = JSON.parse(localStorage.getItem('modelData'))[0]
+                    }
+                }
+            },
+            setLocalStorage(index) {
+                let detail = this.currentProjectData.projectDetail
+                let edit = sessionStorage.getItem('againEdit')
+                if (index == 1) {
+                    if (this.getBtnName == '保存') {
+                        let floorF1 = JSON.parse(localStorage.getItem('floorListF1'))
+                        let modelF1 = JSON.parse(localStorage.getItem('modelOptionsF1'))
+                        if (floorF1 == null) {
+                            localStorage.setItem('floorList', JSON.stringify(detail.floorList[index - 1]))
+                        } else {
+                            localStorage.setItem('floorList', localStorage.getItem('floorListF1'))
+                        }
+                        if (modelF1 == null) {
+                            localStorage.setItem('modelOptions', JSON.stringify(detail.modelOptions[index - 1]))
+                        } else {
+                            localStorage.setItem('modelOptions', localStorage.getItem('modelOptionsF1'))
+                        }
+                    } else if (this.getBtnName == '创建') {
+                        if (JSON.parse(localStorage.getItem('floorListF1')) != null) {
+                            localStorage.setItem('floorList', localStorage.getItem('floorListF1'))
+                        }
+                    }
+                } else if (index == 2) {
+                    if (this.getBtnName == '保存') {
+                        let floorF2 = JSON.parse(localStorage.getItem('floorListF2'))
+                        let modelF2 = JSON.parse(localStorage.getItem('modelOptionsF2'))
+                        if (floorF2 == null) {
+                            localStorage.setItem('floorList', JSON.stringify(detail.floorList[index - 1]))
+                        } else {
+                            localStorage.setItem('floorList', localStorage.getItem('floorListF2'))
+                        }
+                        if (modelF2 == null) {
+                            localStorage.setItem('modelOptions', JSON.stringify(detail.modelOptions[index - 1]))
+                        } else {
+                            localStorage.setItem('modelOptions', localStorage.getItem('modelOptionsF2'))
+                        }
+                    } else if (this.getBtnName == '创建') {
+                        if (JSON.parse(localStorage.getItem('floorListF2')) != null) {
+                            localStorage.setItem('floorList', localStorage.getItem('floorListF2'))
+                        }
                     }
                 }
             },
@@ -1016,6 +1240,7 @@
                 } else if (index == 2) {
                     stationNum = [numF1.stationNum, numF2]
                 }
+                this.setLocalStorage(index)
                 let projectData = {
                     projectName: this.projectName,
                     areaInfo: [{
@@ -1062,7 +1287,7 @@
                 sessionStorage.setItem('fromIndex', 'true')
                 this.$router.push({
                     path: '/edit2d',
-                    query: { index },
+                    query: {index},
                 })
             },
 
@@ -1077,6 +1302,44 @@
                     this.projectBoxHeight = this.$refs.projectList[0].clientHeight;
                     this.$emit('load', false)
                 })
+            },
+            againEdit: {
+                handler(val) {
+                    if (val == true) {
+                        let data = this.currentProjectData
+                        let detail = data.projectDetail
+                        this.projectName = data.pro_name || this.getProjectName
+                        console.log('data.pro_name', data.pro_name, this.projectName, data)
+                        this.requestUrl = detail.requestUrl
+                        this.whalehouseID = detail.whalehouseID
+                        this.areaWidth = detail.areaInfo[0].value.width
+                        this.areaHeight = detail.areaInfo[0].value.height
+                        this.usedAreaWidth = detail.areaInfo[1].value.width
+                        this.usedAreaHeight = detail.areaInfo[1].value.height
+                        this.sceneOption = detail.sceneOption
+                        let modelData = detail.modelData
+                        this.modelDataF1 = modelData[0]
+                        this.modelDataF2 = modelData[1]
+                        if (this.sceneOption.length >= 1) {
+                            this.basicType.typeActive = false
+                            this.editType.typeActive = true
+                            this.enterShow = true
+                        }
+                        if (this.sceneOption.length >= 2) {
+                            this.basicF2Type.typeActive = false
+                            this.hasType.typeActive = false
+                            this.editF2Type.typeActive = true
+                            this.enterF2Show = true
+                        }
+                        if (localStorage.getItem('modelData') !== null) {
+                            this.modelData = JSON.parse(localStorage.getItem('modelData'))
+                            this.hasType.disabled = false
+                        } else {
+                            this.hasType.disabled = true
+                        }
+                        this.setAgainEdit(false)
+                    }
+                }
             },
         },
         mounted() {
@@ -1097,7 +1360,8 @@
              */
             if(sessionStorage.getItem('isEdit') === 'true') {
                 if(sessionStorage.getItem('projectData')) {
-                    this.sceneOptionShow = true
+                    // this.sceneOptionShow = true
+                    this.setSceneOptionShow(true)
                     let projectData = JSON.parse(sessionStorage.getItem('projectData'))
                     this.basicType.typeActive = projectData.type.basicType
                     this.editType.typeActive = projectData.type.editType
@@ -1126,7 +1390,7 @@
                         this.basicF2Type.typeActive = projectData.type.basicF2Type
                         this.hasType.typeActive = projectData.type.hasType
                         this.editF2Type.typeActive = projectData.type.editF2Type
-                        this.enterShow = projectData.type.editF2Type
+                        this.enterF2Show = projectData.type.editF2Type
                     }
                     if (localStorage.getItem('modelData') !== null) {
                         this.modelData = JSON.parse(localStorage.getItem('modelData'))
@@ -1237,6 +1501,7 @@
                         p {
                             width: 5.8vw;
                             height: 1.3vh;
+                            white-space: nowrap;
 
                             &:nth-child(1) {
                                 color: #ffffff;
@@ -1283,6 +1548,8 @@
                         left: 50%;
                         top: 50%;
                         transform: translate(-50%, -50%);
+                        display: flex;
+                        justify-content: space-between;
 
                         .share {
                             margin-left: 2vw;

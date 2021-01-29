@@ -37,7 +37,7 @@ export default {
             },
         ],
         modelTabActiveState: [true, true, true],
-        zIndex: 1, // 存储当前最大的 z-index
+        zIndex: 9999, // 存储当前最大的 z-index
         positions: [], // 轨道的位置信息
         trackWidth: {
             width: '2.8vw',
@@ -53,6 +53,7 @@ export default {
         shelves: [],
         boxItems: [], // 堆塔数组
         modelOptions: [],   // 模型配置数组
+        btnName: '创建',
     },
     getters: {
         getModelList: (state) => state.modelList,
@@ -65,13 +66,14 @@ export default {
         getBoxItems: state => state.boxItems,
         getModelOption: state => {
             let option = localStorage.getItem('modelOptions')
-            if(option !== null) {
+            if (option !== null) {
                 state.modelOptions = JSON.parse(option)
             } else {
                 state.modelOptions = []
             }
             return state.modelOptions
         },
+        getBtnName: state => state.btnName,
     },
     mutations: {
         setStateByKey(state, { key, value }) {
@@ -137,12 +139,15 @@ export default {
         },
         setOptions(state, data) {
             state.modelOptions = data
-            if(state.modelOptions.length > 0) {
+            if (state.modelOptions.length > 0) {
                 localStorage.setItem('modelOptions', JSON.stringify(state.modelOptions))
             }
         },
         changeBox(state, box) {
             state.box = box
+        },
+        setBtnName(state, name) {
+            state.btnName = name
         }
     },
     actions: {},

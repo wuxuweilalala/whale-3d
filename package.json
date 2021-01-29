@@ -8,7 +8,6 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
-    "@babel/compat-data": "^7.10.1",
     "axios": "^0.19.2",
     "core-js": "^3.6.4",
     "createjs-npm": "^0.1.0",
@@ -28,7 +27,7 @@
     "vue-router": "^3.1.5",
     "vue-slider-component": "^3.1.2",
     "vuex": "^3.1.2",
-    "xlsx": "^0.15.5"
+    "xlsx": "^0.16.9"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^4.2.0",
@@ -38,27 +37,25 @@
     "@vue/cli-service": "^4.2.0",
     "babel-eslint": "^10.0.3",
     "babel-plugin-component": "^1.1.1",
+    "drag-controls": "^1.0.4",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.1.2",
     "lint-staged": "^9.5.0",
+    "lodash": "^4.17.15",
     "sass": "^1.25.0",
     "sass-loader": "^8.0.2",
-    "vue-template-compiler": "^2.6.11",
-    "drag-controls": "^1.0.4",
-    "three-orbitcontrols": "^2.110.3",
-    "lodash": "^4.17.15",
-    "three-fbxloader-offical": "^1.0.0",
-    "tween.js": "^16.6.0",
     "three": "^0.114.0",
-    "three-gltf-loader": "^1.111.0"
+    "three-fbxloader-offical": "^1.0.0",
+    "three-gltf-loader": "^1.111.0",
+    "three-orbitcontrols": "^2.110.3",
+    "tween.js": "^16.6.0",
+    "vue-template-compiler": "^2.6.11",
+    "webpack-dev-server": "^3.11.0"
   },
   "gitHooks": {
     "pre-commit": "lint-staged"
   },
   "lint-staged": {
-    "*.{js,jsx,vue}": [
-      "vue-cli-service lint",
-      "git add"
-    ]
+    "*.{js,jsx,vue}": []
   }
 }

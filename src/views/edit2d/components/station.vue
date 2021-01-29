@@ -27,30 +27,41 @@ export default {
   mixins: [mixin],
     data() {
         return {
-          zIndex: 9999,
-          num: 1,
-          space: 60,
-          // componentId: '',
-          show: true,
-          height: '22.2vw',
-          border: '',
+            zIndex: 9999,
+            num: 1,
+            space: 60,
+            // componentId: '',
+            show: true,
+            height: '480px',
+            border: '',
+            widthStyle: '',
         }
     },
     created() {
-      // console.log('this', this.item)
-      // debugger
-        if(!this.item.isDeleted) {
-          this.zIndex = this.getZIndex + 1
+      if(!this.item.isDeleted) {
+          this.widthStyle = Number(this.width.replace('px', '')) + 4 + 'px'
+          this.$nextTick(() => {
+              this.setBorderStyle(this.widthStyle, this.height, this.item.left - 2, this.item.top - 2)
+          })
+          // let len = this.$parent.floorList[0].componentList[0].itemList.length - 1
+          // let isDrag = Boolean(sessionStorage.getItem('isDrag'))
+          // if (this.index === len && isDrag) {
+          //   this.findIsSelected()
+          // }
+          this.$parent.key = this.$parent.uuid()
+
+          this.zIndex = this.getZIndex - 1
           // this.border = this.item.border
           this.initData()
+          this.border = this.item.border
           this.componentId = this.item.id
-        } else {
+      } else {
             this.show = !this.item.isDeleted
         }
     },
     computed: {
         width() {
-            return this.$vwToPx(2.4) + 'px'
+            return '46px'
         }
     },
     methods: {
@@ -75,13 +86,12 @@ export default {
             this.mouseY = event.clientY;
             this.domOffsetLeft = 0;
             this.domOffsetTop = 0;
-            //
-            this.dom = this.$refs.toolBZQ
+
+          this.dom = this.$refs.toolBZQ
             // 设置 z-index
-            this.dom.style.zIndex = this.getZIndex + 1
+            this.dom.style.zIndex = this.getZIndex - 1
             // this.border = '0.08vw solid rgba(230, 162, 64, 1)'
-            this.setZIndex(this.getZIndex + 1)
-            console.log('this.$parent.posNum *****', this.$parent.posNum)
+            this.setZIndex(this.getZIndex - 1)
 
             // 显示属性框
             if (this.item.modelName == '工作站') {
@@ -89,12 +99,12 @@ export default {
             }
             this.$parent.showBorder(this.index)
             // this.setBorderStyle(this.width, this.height, this.left - 2, this.top)
-            // this.border = '0.05vw solid rgba(255, 172, 41, 1)'
             this.$parent.posNum = this.num
             this.$parent.posLeft = this.left
             this.$parent.posTop = this.top
             this.$parent.posSpace = this.space
 
+            this.$parent.border = '0.05vw solid rgba(255, 172, 41, 1)';
             this.domWidth = this.dom.offsetWidth;
             this.domHeight = this.dom.offsetHeight;
             // event.target.style.cursor = "move";
@@ -105,9 +115,13 @@ export default {
             this.getParentTag(this.dom)
             this.offsetX = event.clientX - this.domOffsetLeft
             this.offsetY = event.clientY - this.domOffsetTop
-
+            this.widthStyle = Number(this.width.replace('px', '')) + 4 + 'px'
+            this.heightStyle = Number(this.height.replace('px', '')) + 4 + 'px'
+            this.$parent.key = this.$parent.uuid()
+            this.setBorderStyle(this.widthStyle, this.heightStyle, this.item.left - 2, this.item.top - 2)
+            this.setIsSelected(this.item.id)
             window.onmousemove = event => {
-                this.moveClac(this.dom, this.width, this.height)
+                this.moveClac(event, this.dom, this.widthStyle, this.heightStyle)
             };
 
         }
@@ -120,12 +134,13 @@ export default {
         getModelOption: {
             deep: true,
             handler(val, old) {
-                // debugger
-                let option = val[this.index]
+
+              let option = val[this.index]
                 let selectedId = this.$parent.selectedId
                 if(option.id === selectedId && !option.isDeleted) {
                     this.num = option.stationNum
                     this.space = option.stationSpace
+                    this.setBorderStyle(this.width, this.height, this.left, this.top)
                 }
                 this.show = !option.isDeleted
             }
@@ -136,8 +151,8 @@ export default {
 
 <style lang="scss" scoped>
 .toolBZQ {
-    width: 2.4vw;
-    height: 25vw;
+    width: 46px;
+    height: 480px;
     position: absolute;
     cursor: move;
 
@@ -149,17 +164,17 @@ export default {
         cursor: move;
 
     .toolBZQChild {
-        height: 4.65vh;
-        width: 2.4vw;
-        margin-bottom: 2.1vh;
+        height: 43px;
+        width: 46px;
+        margin-bottom: 19px;
 
         &:last-child {
             // 40.3vh - 38.4  1.9/2   0.95  2.1vh*5=10.5 + 1.9 = 12.4    (40.3-12.4)/6 = 4.65
-            margin-bottom: 0.95vh;
+            margin-bottom: 9px;
         }
 
         &:first-child {
-            margin-top: 0.95vh;
+            margin-top: 9px;
         }
     }
   }

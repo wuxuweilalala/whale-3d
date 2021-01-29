@@ -183,17 +183,14 @@
                             message: '请选择任务时间段',
                             type: 'error'
                         });
-                        // self.$store.commit('index/setFirstPlay', true);
                         return;
                     }
                 }
-                // self.$store.commit('index/setFirstPlay', false);
                 if (!self.playState) {
                     self.$store.commit('index/setplayState', true);
                 } else {
                     self.$store.commit('index/setplayState', false);
                 }
-                console.log('播放vrtl', this.playState)
 
             },
             // 底部工作时间和发货量切换的事件绑定
@@ -266,30 +263,22 @@
             clearInterval(this.timer);
         },
         watch: {
-            progressTime() {
-                // let progressTime=this.progressTime
-                // console.log('this.progressTime', this.progressTime)
-                if (this.progressTime >= 100) {
-                    let self = this;
-                    setTimeout(function () {
-                        self.$store.commit('index/setplayState', false);
-                    }, 2000)
-                    // this.$store.commit('index/setplayState', false);
-                    this.$store.commit('index/setFirstPlay', true);
-                    this.setMoveTime(0);
-                    this.setTotalTime(0);
-                    clearInterval(this.timer);
-                }
-            },
-            moveTime() {
-                // if (this.moveTime >= 105) {
-                //     this.$store.commit('index/setplayState', false);
-                //     this.$store.commit('index/setFirstPlay', true);
-                //     this.setMoveTime(0);
-                //     this.setTotalTime(0);
-                //     clearInterval(this.timer);
-                // }
-            }
+             // 进度条到100的监听*/
+            // progressTime() {
+            //     // let progressTime=this.progressTime
+            //     // console.log('this.progressTime', this.progressTime)
+            //     if (this.progressTime >= 100) {
+            //         let self = this;
+            //         setTimeout(function () {
+            //             self.$store.commit('index/setplayState', false);
+            //         }, 2000)
+            //         // this.$store.commit('index/setplayState', false);
+            //         this.$store.commit('index/setFirstPlay', true);
+            //         this.setMoveTime(0);
+            //         this.setTotalTime(0);
+            //         clearInterval(this.timer);
+            //     }
+            // },
         }
     };
 </script>

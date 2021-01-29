@@ -42,10 +42,9 @@
                             </div>
                         </div>
                     </div>
-                    <!--                @click="$router.push({path:'/edit'})"-->
-                    <!--                    <div @click='editbaleInput'-->
-                    <!--                      class="editBtn">编辑-->
-                    <!--                    </div>-->
+                    <div @click='editbaleInput'
+                      class="editBtn">编辑
+                    </div>
                 </div>
             </div>
         </div>
@@ -60,7 +59,7 @@
 </template>
 
 <script>
-    import {mapGetters, mapState} from 'vuex';
+    import {mapGetters, mapState, mapMutations} from 'vuex';
 
     export default {
         name: "scene",
@@ -74,7 +73,7 @@
                 projectList: 'getProjectList',
             }),
             // currentProjectAreaNum(){
-            //     debugger
+
             //     return this.currentProjectData.projectDetail.areaNum
             // },
             // currentProjectUsedAreaNum(){
@@ -82,7 +81,7 @@
             // },
             // currentProjectUsedPercent(){
             //     let percent=(this.areaInfo[1].value/this.areaInfo[0].value*100).toFixed(2)
-            //     // debugger
+
             //     return percent==='NaN'?0:percent
             // },
             // projectValues(){
@@ -97,7 +96,6 @@
                 handler(val) {
                     this.areaInfo = this._get(val, 'projectDetail.areaInfo', []);
                     this.machineInfo = this._get(val, 'projectDetail.machineInfo', []);
-
                 },
             },
             areaInfo: {
@@ -131,15 +129,48 @@
             }
         },
         methods: {
+            ...mapMutations('index', {
+                handleIsCreateWrapperShow: 'changeIsCreateWrapperShow',
+                setSceneOptionShow: 'setSceneOptionShow',
+                setAgainEdit: 'setAgainEdit',
+            }),
             toPreview() {
                 this.$router.push({path: '/preview'})
-
             },
             createProject() {
                 this.$store.commit('index/changeIsCreateWrapperShow', true)
             },
             editbaleInput() {
-                this.editbale = true
+                // let proData = this.currentProjectData
+                // let stationNumF2 = 0
+                // if (proData.projectDetail.sceneOption.length == 2) {
+                //     stationNumF2 = proData.projectDetail.sceneOption[1].stationNum
+                // }
+                // let projectData = {
+                //     projectName: proData.pro_name,
+                //     areaInfo: proData.projectDetail.areaInfo,
+                //     machineInfo: proData.projectDetail.machineInfo,
+                //     whalehouseID: proData.projectDetail.whalehouseID,
+                //     requestUrl: proData.projectDetail.requestUrl,
+                //     sceneOption: proData.projectDetail.sceneOption,
+                //     floorNum: proData.projectDetail.sceneOption.length,
+                //     stationNumF1: proData.projectDetail.sceneOption[0].stationNum,
+                //     stationNumF2: stationNumF2,
+                //     floorTabActiveIndex: 0,
+                //     type: {
+                //         basicType: false,
+                //         editType: true,
+                //         basicF2Type: proData.projectDetail.sceneOption == 1,
+                //         hasType: false,
+                //         editF2Type: proData.projectDetail.sceneOption.length == 2,
+                //     }
+                // }
+                // sessionStorage.setItem('currentProject', JSON.stringify(projectData))
+                this.handleIsCreateWrapperShow(true)
+                // this.setSceneOptionShow(true)
+                this.setAgainEdit(true)
+                sessionStorage.setItem('againEdit', true)
+                this.$store.commit('edit/setBtnName', '保存')
             },
 
         }
